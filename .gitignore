@@ -36,6 +36,12 @@ yarn-error.log*
 # vercel
 .vercel
 
+# supabase
+.supabase/
+
+# output (에이전트 중간 산출물, 선택적으로 제외)
+# /output/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
