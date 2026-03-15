@@ -29,11 +29,11 @@ export async function getPastQuestionsByIds(ids: string[]) {
 
   const { data, error } = await supabase
     .from('act_past_questions')
-    .select('id, year, session, question_no, question_text, options, has_formula')
+    .select('id, year, session, subject, question_no, question_text, options, tags, has_formula')
     .in('id', ids);
 
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []) as unknown as import('@/types/question').PastQuestion[];
 }
 
 // 키워드로 유사 기출 검색 (주간 배치용, 관리자 클라이언트)

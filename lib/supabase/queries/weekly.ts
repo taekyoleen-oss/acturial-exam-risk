@@ -31,7 +31,7 @@ export async function getWeeklyIssueByDate(issueDate: string) {
 export async function getWeeklyArchiveList() {
   const { data, error } = await supabase
     .from('act_weekly_issues')
-    .select('id, issue_date, week_label, status')
+    .select('id, issue_date, week_label, status, generated_at')
     .eq('status', 'published')
     .order('issue_date', { ascending: false });
 
