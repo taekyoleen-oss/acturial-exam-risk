@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
       .limit(10);
 
     const sampleText = (sampleQs ?? [])
-      .map((q) => `Q${q.question_no}. ${q.question_text}\n${JSON.stringify(q.options)}`)
+      .map((q) => `Q${q.question_no}. ${q.question_text}`)
       .join('\n\n');
 
     // 6. 가상 문제 생성

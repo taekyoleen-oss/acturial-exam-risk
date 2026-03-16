@@ -16,9 +16,6 @@ const ArticleSchema = z.object({
 const VirtualQuestionSchema = z.object({
   no: z.number().int().min(1).max(5),
   stem: z.string().min(10),
-  options: z
-    .array(z.object({ label: z.string(), text: z.string() }))
-    .length(5),
   related_article_idx: z.number().int().min(0),
   similar_past_question_ids: z.array(z.string()).max(2).default([]),
   rag_mode: z.enum(['rag_enhanced', 'fallback']).default('fallback'),
@@ -27,6 +24,30 @@ const VirtualQuestionSchema = z.object({
 
 export type GeneratedArticle = z.infer<typeof ArticleSchema>;
 export type GeneratedQuestion = z.infer<typeof VirtualQuestionSchema>;
+
+/** 텍스트에서 첫 번째 완전한 JSON 배열을 추출 */
+function extractJsonArray(text: string): string {
+  const start = text.indexOf('[');
+  if (start === -1) return '[]';
+
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (escape) { escape = false; continue; }
+    if (ch === '\\' && inString) { escape = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === '[' || ch === '{') depth++;
+    else if (ch === ']' || ch === '}') {
+      depth--;
+      if (depth === 0) return text.slice(start, i + 1);
+    }
+  }
+  return '[]';
+}
 
 /** 1단계: 뉴스 수집 */
 export async function collectNewsArticles(
@@ -45,9 +66,9 @@ export async function collectNewsArticles(
     messages: [
       {
         role: 'user',
-        content: `${sourceList}지난 7일간의 국내 뉴스에서 보험계리사 2차 계리리스크관리 시험 범위(시장리스크, 신용리스크, 운영리스크, ALM, K-ICS/RBC, 보험부채, 재보험, VaR 등)와 관련된 기사를 전부 수집하세요.
+        content: `${sourceList}지난 7일간 국내 보험 업계 뉴스 중 다음 키워드와 관련된 기사를 검색하여 JSON 배열로만 반환하세요 (다른 설명 없이):
+키워드: IFRS17, CSM, K-ICS, 계리적가정, 무저해지보험, 실손보험, 보험부채, 금리리스크, 예실차, UFR
 
-각 기사를 다음 JSON 배열로만 반환하세요 (다른 설명 없이):
 [{
   "title": "기사 제목",
   "source": "발행기관명",
@@ -60,16 +81,24 @@ export async function collectNewsArticles(
     ],
   });
 
-  // 마지막 text 블록에서 JSON 추출
-  const texts = message.content.filter((b) => b.type === 'text');
-  const lastText = (texts[texts.length - 1] as { type: string; text: string })?.text ?? '[]';
-  const jsonStr = lastText
-    .trim()
-    .replace(/^```json?\n?/, '')
-    .replace(/\n?```$/, '');
+  // text 블록들을 역순으로 탐색하여 ArticleSchema 유효한 JSON 배열 추출
+  const allTexts = message.content
+    .filter((b) => b.type === 'text')
+    .map((b) => (b as { type: 'text'; text: string }).text);
 
-  const parsed = JSON.parse(jsonStr);
-  return z.array(ArticleSchema).parse(parsed);
+  for (const t of [...allTexts].reverse()) {
+    const candidate = extractJsonArray(t);
+    if (candidate === '[]') continue;
+    try {
+      const parsed = JSON.parse(candidate);
+      const result = z.array(ArticleSchema).safeParse(parsed);
+      if (result.success && result.data.length > 0) return result.data;
+    } catch {
+      continue;
+    }
+  }
+
+  return [];
 }
 
 /** 2단계: 가상 문제 생성 */
@@ -93,7 +122,7 @@ export async function generateVirtualQuestions(
     )
     .join('\n\n');
 
-  const prompt = `보험계리사 2차 계리리스크관리 시험의 출제 전문가로서 5지선다 예상 문제 5개를 생성하세요.
+  const prompt = `보험계리사 2차 계리리스크관리론 시험의 출제 전문가로서 주관식 예상 문제 5개를 생성하세요.
 ${ragSection}
 [이번 주 수집 기사]
 ${articleSummary}
@@ -101,17 +130,23 @@ ${articleSummary}
 [기출문제 패턴 참고]
 ${sampleQuestions}
 
+[출제 시 반드시 고려할 키워드 (제도 변화·실무 이슈 중심)]
+- IFRS17 계리적 가정: 금감원 가이드라인, 무저해지 보험 해지율, 실손보험 손해율 가정
+- CSM(보험계약서비스마진): CSM 상각·조정이 보험사 손익에 미치는 영향
+- K-ICS 할인율: 장기선도금리(UFR) 조정, 할인율 현실화가 부채·자본에 미치는 영향
+- 예실차(예상과 실제의 차이) 분석: 계리적 가정 변경 시 리스크 관리 방안
+
 규칙:
+- 주관식 논술형 또는 계산형 (선택지 없음), 실무적 이슈 중심으로 출제
 - 각 문제는 위 기사 중 하나와 연관되어야 함 (related_article_idx: 기사 배열 인덱스 0부터)
 - rag_mode: "${ragContext.mode}"
 - answer 필드 포함하지 않음 (정답 제공 안 함)
-- 선택지 ①②③④⑤ 5개 필수
+- 기출문제 패턴과 유사한 난이도, 보험사 실무자 관점의 구체적 문제 출제
 
 다음 JSON 배열만 반환 (다른 설명 없이):
 [{
   "no": 1~5,
-  "stem": "문제 본문",
-  "options": [{"label":"①","text":"..."},{"label":"②","text":"..."},{"label":"③","text":"..."},{"label":"④","text":"..."},{"label":"⑤","text":"..."}],
+  "stem": "문제 본문 (주관식 서술형 또는 계산형)",
   "related_article_idx": 0,
   "similar_past_question_ids": [],
   "rag_mode": "${ragContext.mode}",
@@ -125,10 +160,8 @@ ${sampleQuestions}
       messages: [{ role: 'user', content: prompt }],
     });
 
-    const text = (message.content[0] as { type: string; text: string }).text
-      .trim()
-      .replace(/^```json?\n?/, '')
-      .replace(/\n?```$/, '');
+    const raw = (message.content[0] as { type: string; text: string }).text;
+    const text = extractJsonArray(raw);
 
     try {
       const parsed = JSON.parse(text);

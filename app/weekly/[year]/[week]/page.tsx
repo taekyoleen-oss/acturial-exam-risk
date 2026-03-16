@@ -82,6 +82,7 @@ export default async function WeeklyArchivePage({ params }: Params) {
                   articleIndex={idx}
                   questions={questions}
                   similarPastQuestions={similarPast}
+                  issueDate={issueDate}
                 />
               );
             })}

@@ -72,6 +72,7 @@ export default async function WeeklyPage() {
                   articleIndex={idx}
                   questions={questions}
                   similarPastQuestions={similarPast}
+                  issueDate={issue.issue_date}
                 />
               );
             })}

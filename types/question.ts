@@ -3,7 +3,7 @@ export interface QuestionOption {
   text: string;
 }
 
-/** 기출문제 (공개 표시용 — 정답·해설 제외) */
+/** 기출문제 (주관식 논술형, 공개 표시용 — 정답·해설 제외) */
 export interface PastQuestion {
   id: string;
   year: number;
@@ -11,16 +11,14 @@ export interface PastQuestion {
   subject: string;
   question_no: number;
   question_text: string;
-  options: QuestionOption[];
   tags: string[] | null;
   has_formula: boolean;
 }
 
-/** 가상 문제 (주간 배치 생성, 정답 없음) */
+/** 가상 문제 (주관식, 주간 배치 생성, 정답 없음) */
 export interface VirtualQuestion {
   no: number;
   stem: string;
-  options: QuestionOption[];
   related_article_idx: number;
   similar_past_question_ids: string[];
   rag_mode: 'rag_enhanced' | 'fallback';

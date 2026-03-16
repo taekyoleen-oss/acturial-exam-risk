@@ -10,6 +10,7 @@ interface WeeklyCardProps {
   articleIndex: number;
   questions: VirtualQuestion[];
   similarPastQuestions: PastQuestion[];
+  issueDate: string;
 }
 
 export function WeeklyCard({
@@ -17,6 +18,7 @@ export function WeeklyCard({
   articleIndex,
   questions,
   similarPastQuestions,
+  issueDate,
 }: WeeklyCardProps) {
   const relatedQuestions = questions.filter(
     (q) => q.related_article_idx === articleIndex
@@ -37,7 +39,7 @@ export function WeeklyCard({
           </p>
           <div className="space-y-3">
             {relatedQuestions.map((q) => (
-              <VirtualQuestionCard key={q.no} question={q} />
+              <VirtualQuestionCard key={q.no} question={q} issueDate={issueDate} />
             ))}
           </div>
         </div>

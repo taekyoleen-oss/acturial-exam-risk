@@ -1,18 +1,31 @@
 import { supabase, supabaseAdmin } from '@/lib/supabase/server';
 
-// 연도별 기출문제 조회 (정답·해설 제외 — 공개 정책)
-export async function getPastQuestionsByYear(year: number) {
-  const { data, error } = await supabase
+// 연도·회차·태그 필터 기출문제 조회 (정답·해설 제외)
+export async function getPastQuestions({
+  year,
+  session,
+  tag,
+}: {
+  year?: number;
+  session?: string;
+  tag?: string;
+} = {}) {
+  let query = supabase
     .from('act_past_questions')
-    .select('id, year, session, subject, question_no, question_text, options, tags, has_formula')
-    .eq('year', year)
+    .select('id, year, session, subject, question_no, question_text, tags, has_formula')
+    .order('year', { ascending: false })
     .order('question_no');
 
+  if (year) query = query.eq('year', year);
+  if (session) query = query.eq('session', session);
+  if (tag) query = query.contains('tags', [tag]);
+
+  const { data, error } = await query;
   if (error) throw error;
   return data ?? [];
 }
 
-// 조회 가능한 연도 목록
+// 연도·회차 목록 (필터 UI용)
 export async function getAvailableYears(): Promise<number[]> {
   const { data, error } = await supabase
     .from('act_past_questions')
@@ -21,6 +34,28 @@ export async function getAvailableYears(): Promise<number[]> {
 
   if (error) throw error;
   return [...new Set((data ?? []).map((r) => r.year))];
+}
+
+export async function getAvailableSessionsByYear(year: number): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('act_past_questions')
+    .select('session')
+    .eq('year', year)
+    .order('session');
+
+  if (error) throw error;
+  return [...new Set((data ?? []).map((r) => r.session))];
+}
+
+// 사용 중인 태그 전체 목록
+export async function getAvailableTags(): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('act_past_questions')
+    .select('tags');
+
+  if (error) throw error;
+  const allTags = (data ?? []).flatMap((r) => (r.tags as string[]) ?? []);
+  return [...new Set(allTags)].sort();
 }
 
 // 유사 기출 ID 배열로 조회 (정답·해설 제외)
