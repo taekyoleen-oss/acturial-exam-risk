@@ -1,6 +1,7 @@
 import type { VirtualQuestion } from '@/types/question';
 import { RagSourceBadge } from '@/components/ui/RagSourceBadge';
 import { AnswerButton } from '@/components/ui/AnswerButton';
+import { MathText } from '@/components/ui/MathText';
 
 interface VirtualQuestionCardProps {
   question: VirtualQuestion;
@@ -18,9 +19,17 @@ export function VirtualQuestionCard({ question, issueDate }: VirtualQuestionCard
 
       <div className="p-4">
         {/* 문제 본문 */}
-        <p className="text-sm leading-relaxed text-[#0F172A] mb-4 whitespace-pre-wrap">
-          {question.stem}
-        </p>
+        {question.has_formula ? (
+          <MathText
+            text={question.stem}
+            block
+            className="text-sm leading-relaxed text-[#0F172A] mb-4 whitespace-pre-wrap"
+          />
+        ) : (
+          <p className="text-sm leading-relaxed text-[#0F172A] mb-4 whitespace-pre-wrap">
+            {question.stem}
+          </p>
+        )}
 
         {/* 주관식 답안 작성 안내 */}
         <div className="rounded-md border border-dashed border-[#CBD5E1] bg-[#F8FAFC] px-4 py-3">

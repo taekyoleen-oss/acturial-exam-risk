@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "katex/dist/katex.min.css";
 import { AccessKeyBanner } from "@/components/ui/AccessKeyBanner";
 
 export const metadata: Metadata = {

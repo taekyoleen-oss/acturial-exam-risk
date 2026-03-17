@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { MathText } from './MathText';
 
 interface AnswerButtonProps {
   questionText: string;
@@ -141,24 +142,24 @@ export function AnswerButton({
                     if (!line.trim()) return <div key={i} className="h-2" />;
                     if (/^#{1,3}\s/.test(line)) {
                       const text = line.replace(/^#{1,3}\s/, '');
-                      return <h3 key={i} className="text-sm font-bold text-[#0F172A] mt-4 mb-1">{text}</h3>;
+                      return <h3 key={i} className="text-sm font-bold text-[#0F172A] mt-4 mb-1"><MathText text={text} /></h3>;
                     }
                     if (/^\d+\.\s/.test(line) && line.length < 60) {
-                      return <h3 key={i} className="text-sm font-bold text-[#0F172A] mt-4 mb-1">{line}</h3>;
+                      return <h3 key={i} className="text-sm font-bold text-[#0F172A] mt-4 mb-1"><MathText text={line} /></h3>;
                     }
                     if (/^\*\*.*\*\*$/.test(line.trim())) {
                       const text = line.trim().replace(/\*\*/g, '');
-                      return <p key={i} className="text-sm font-semibold text-[#1E40AF] mt-3 mb-0.5">{text}</p>;
+                      return <p key={i} className="text-sm font-semibold text-[#1E40AF] mt-3 mb-0.5"><MathText text={text} /></p>;
                     }
                     if (/^[-•·]\s/.test(line)) {
                       return (
                         <div key={i} className="flex gap-1.5 text-sm leading-relaxed text-[#334155] ml-2">
                           <span className="shrink-0 mt-1">•</span>
-                          <span>{line.replace(/^[-•·]\s/, '')}</span>
+                          <MathText text={line.replace(/^[-•·]\s/, '')} />
                         </div>
                       );
                     }
-                    return <p key={i} className="text-sm leading-relaxed text-[#334155] mb-1">{line}</p>;
+                    return <p key={i} className="text-sm leading-relaxed text-[#334155] mb-1"><MathText text={line} /></p>;
                   })}
                 </div>
 
