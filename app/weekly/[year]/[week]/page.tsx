@@ -4,6 +4,7 @@ import { getPastQuestionsByIds } from '@/lib/supabase/queries/past-questions';
 import { getMondayByYearWeek } from '@/lib/utils/week';
 import { WeeklyCard } from '@/components/weekly/WeeklyCard';
 import { WeeklyArchiveNav } from '@/components/weekly/WeeklyArchiveNav';
+import { ArchiveAccessGuard } from '@/components/ui/ArchiveAccessGuard';
 import type { VirtualQuestion } from '@/types/question';
 import type { Article } from '@/types/weekly';
 
@@ -51,47 +52,49 @@ export default async function WeeklyArchivePage({ params }: Params) {
       </header>
 
       <div className="mx-auto max-w-5xl px-4 py-8">
-        <div className="mb-6">
-          <span className="inline-block rounded-full bg-[#7C3AED]/10 px-3 py-1 text-xs font-medium text-[#7C3AED] mb-2">
-            {issue.week_label} (아카이브)
-          </span>
-          <h2 className="text-xl font-bold text-[#0F172A]">주간 예상 문제</h2>
-          <p className="text-sm text-[#64748B] mt-1">
-            기사 {articles.length}건 · 예상 문제 {questions.length}개
-          </p>
-        </div>
-
-        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
-          AI가 생성한 예상 문제는 공식 시험과 다를 수 있으며, 학습 참고 용도로만 사용하시기 바랍니다.
-        </div>
-
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-          <div className="flex-1 space-y-6">
-            {articles.map((article, idx) => {
-              const relatedPastIds = questions
-                .filter((q) => q.related_article_idx === idx)
-                .flatMap((q) => q.similar_past_question_ids ?? []);
-              const similarPast = [...new Set(relatedPastIds)]
-                .map((id) => pastMap[id])
-                .filter(Boolean);
-
-              return (
-                <WeeklyCard
-                  key={idx}
-                  article={article}
-                  articleIndex={idx}
-                  questions={questions}
-                  similarPastQuestions={similarPast}
-                  issueDate={issueDate}
-                />
-              );
-            })}
+        <ArchiveAccessGuard>
+          <div className="mb-6">
+            <span className="inline-block rounded-full bg-[#7C3AED]/10 px-3 py-1 text-xs font-medium text-[#7C3AED] mb-2">
+              {issue.week_label} (아카이브)
+            </span>
+            <h2 className="text-xl font-bold text-[#0F172A]">주간 예상 문제</h2>
+            <p className="text-sm text-[#64748B] mt-1">
+              기사 {articles.length}건 · 예상 문제 {questions.length}개
+            </p>
           </div>
 
-          <div className="w-full lg:w-56 shrink-0">
-            <WeeklyArchiveNav archives={archives} currentIssueDate={issue.issue_date} />
+          <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+            AI가 생성한 예상 문제는 공식 시험과 다를 수 있으며, 학습 참고 용도로만 사용하시기 바랍니다.
           </div>
-        </div>
+
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+            <div className="flex-1 space-y-6">
+              {articles.map((article, idx) => {
+                const relatedPastIds = questions
+                  .filter((q) => q.related_article_idx === idx)
+                  .flatMap((q) => q.similar_past_question_ids ?? []);
+                const similarPast = [...new Set(relatedPastIds)]
+                  .map((id) => pastMap[id])
+                  .filter(Boolean);
+
+                return (
+                  <WeeklyCard
+                    key={idx}
+                    article={article}
+                    articleIndex={idx}
+                    questions={questions}
+                    similarPastQuestions={similarPast}
+                    issueDate={issueDate}
+                  />
+                );
+              })}
+            </div>
+
+            <div className="w-full lg:w-56 shrink-0">
+              <WeeklyArchiveNav archives={archives} currentIssueDate={issue.issue_date} />
+            </div>
+          </div>
+        </ArchiveAccessGuard>
       </div>
     </main>
   );

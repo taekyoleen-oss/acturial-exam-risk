@@ -1,6 +1,6 @@
 import type { PastQuestion } from '@/types/question';
 import { SubjectBadge } from '@/components/ui/SubjectBadge';
-import { AnswerButton } from '@/components/ui/AnswerButton';
+import { PastAnswerSection } from '@/components/ui/PastAnswerSection';
 
 interface PastQuestionCardProps {
   question: PastQuestion;
@@ -39,11 +39,7 @@ export function PastQuestionCard({ question }: PastQuestionCardProps) {
           <p className="text-xs text-[#94A3B8]">논술형 — 직접 답안을 작성해 보세요</p>
         </div>
 
-        <AnswerButton
-          questionText={question.question_text}
-          questionMeta={`${question.year}년 ${question.session} Q${question.question_no} (기출문제)`}
-          questionKey={`past:${question.id}`}
-        />
+        <PastAnswerSection question={question} />
       </div>
     </div>
   );

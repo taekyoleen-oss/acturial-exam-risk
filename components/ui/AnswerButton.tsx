@@ -1,24 +1,45 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface AnswerButtonProps {
   questionText: string;
   questionMeta?: string;
   questionKey: string; // e.g. "past:{uuid}" | "virtual:{issue_date}:{no}"
+  restrictedYear?: boolean; // true → enforce year restriction if no access key
+  truncateFirstParagraph?: boolean; // true → show only first paragraph if no access key
 }
 
-export function AnswerButton({ questionText, questionMeta, questionKey }: AnswerButtonProps) {
-  const [state, setState] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
+export function AnswerButton({
+  questionText,
+  questionMeta,
+  questionKey,
+  restrictedYear,
+  truncateFirstParagraph,
+}: AnswerButtonProps) {
+  const [state, setState] = useState<'idle' | 'loading' | 'done' | 'error' | 'restricted'>('idle');
   const [answer, setAnswer] = useState<string>('');
   const [cached, setCached] = useState(false);
   const [open, setOpen] = useState(false);
+  const [hasKey, setHasKey] = useState(false);
+
+  useEffect(() => {
+    setHasKey(!!localStorage.getItem('access_key'));
+  }, []);
 
   const handleClick = async () => {
     if (state === 'done') {
       setOpen((v) => !v);
       return;
     }
+
+    // Year restriction: block entirely if no key
+    if (restrictedYear && !hasKey) {
+      setState('restricted');
+      setOpen(true);
+      return;
+    }
+
     setState('loading');
     setOpen(true);
     try {
@@ -37,6 +58,16 @@ export function AnswerButton({ questionText, questionMeta, questionKey }: Answer
       setState('error');
     }
   };
+
+  // Compute display answer — truncate to 10 lines if no access key
+  const lines = answer ? answer.split('\n') : [];
+  const VISIBLE_LINES = 20;
+  const displayAnswer =
+    truncateFirstParagraph && !hasKey && lines.length > VISIBLE_LINES
+      ? lines.slice(0, VISIBLE_LINES).join('\n')
+      : answer;
+  const isTruncated =
+    truncateFirstParagraph && !hasKey && lines.length > VISIBLE_LINES;
 
   return (
     <div className="mt-3">
@@ -57,6 +88,16 @@ export function AnswerButton({ questionText, questionMeta, questionKey }: Answer
           ? '답안 닫기'
           : '답안 확인'}
       </button>
+
+      {/* Year-restricted access message */}
+      {open && state === 'restricted' && (
+        <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-4 flex items-start gap-2">
+          <span className="text-amber-600 mt-0.5 shrink-0">🔒</span>
+          <p className="text-sm text-amber-800">
+            허용되지 않은 사용자입니다. 상단에서 접근 키를 입력하시기 바랍니다.
+          </p>
+        </div>
+      )}
 
       {open && state === 'loading' && (
         <div className="mt-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-5 text-center">
@@ -94,31 +135,43 @@ export function AnswerButton({ questionText, questionMeta, questionKey }: Answer
             {state === 'error' ? (
               <p className="text-sm text-red-500">{answer}</p>
             ) : (
-              <div className="prose prose-sm max-w-none text-[#0F172A]">
-                {answer.split('\n').map((line, i) => {
-                  if (!line.trim()) return <div key={i} className="h-2" />;
-                  if (/^#{1,3}\s/.test(line)) {
-                    const text = line.replace(/^#{1,3}\s/, '');
-                    return <h3 key={i} className="text-sm font-bold text-[#0F172A] mt-4 mb-1">{text}</h3>;
-                  }
-                  if (/^\d+\.\s/.test(line) && line.length < 60) {
-                    return <h3 key={i} className="text-sm font-bold text-[#0F172A] mt-4 mb-1">{line}</h3>;
-                  }
-                  if (/^\*\*.*\*\*$/.test(line.trim())) {
-                    const text = line.trim().replace(/\*\*/g, '');
-                    return <p key={i} className="text-sm font-semibold text-[#1E40AF] mt-3 mb-0.5">{text}</p>;
-                  }
-                  if (/^[-•·]\s/.test(line)) {
-                    return (
-                      <div key={i} className="flex gap-1.5 text-sm leading-relaxed text-[#334155] ml-2">
-                        <span className="shrink-0 mt-1">•</span>
-                        <span>{line.replace(/^[-•·]\s/, '')}</span>
-                      </div>
-                    );
-                  }
-                  return <p key={i} className="text-sm leading-relaxed text-[#334155] mb-1">{line}</p>;
-                })}
-              </div>
+              <>
+                <div className="prose prose-sm max-w-none text-[#0F172A]">
+                  {displayAnswer.split('\n').map((line, i) => {
+                    if (!line.trim()) return <div key={i} className="h-2" />;
+                    if (/^#{1,3}\s/.test(line)) {
+                      const text = line.replace(/^#{1,3}\s/, '');
+                      return <h3 key={i} className="text-sm font-bold text-[#0F172A] mt-4 mb-1">{text}</h3>;
+                    }
+                    if (/^\d+\.\s/.test(line) && line.length < 60) {
+                      return <h3 key={i} className="text-sm font-bold text-[#0F172A] mt-4 mb-1">{line}</h3>;
+                    }
+                    if (/^\*\*.*\*\*$/.test(line.trim())) {
+                      const text = line.trim().replace(/\*\*/g, '');
+                      return <p key={i} className="text-sm font-semibold text-[#1E40AF] mt-3 mb-0.5">{text}</p>;
+                    }
+                    if (/^[-•·]\s/.test(line)) {
+                      return (
+                        <div key={i} className="flex gap-1.5 text-sm leading-relaxed text-[#334155] ml-2">
+                          <span className="shrink-0 mt-1">•</span>
+                          <span>{line.replace(/^[-•·]\s/, '')}</span>
+                        </div>
+                      );
+                    }
+                    return <p key={i} className="text-sm leading-relaxed text-[#334155] mb-1">{line}</p>;
+                  })}
+                </div>
+
+                {/* Truncation notice */}
+                {isTruncated && (
+                  <div className="mt-4 rounded-lg border border-[#CBD5E1] bg-[#F8FAFC] px-4 py-3 flex items-center gap-2">
+                    <span className="text-[#94A3B8] shrink-0">🔒</span>
+                    <p className="text-sm text-[#64748B]">
+                      전체 답안은 접근 키를 입력하신 후 이용 가능합니다.
+                    </p>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>

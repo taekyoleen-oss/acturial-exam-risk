@@ -31,6 +31,7 @@ export function VirtualQuestionCard({ question, issueDate }: VirtualQuestionCard
           questionText={question.stem}
           questionMeta={`예상 문제 ${question.no} (${issueDate} AI 생성)`}
           questionKey={`virtual:${issueDate}:${question.no}`}
+          truncateFirstParagraph
         />
       </div>
     </div>

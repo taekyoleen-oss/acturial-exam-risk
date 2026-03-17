@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import type { PastQuestion } from '@/types/question';
 import { SubjectBadge } from '@/components/ui/SubjectBadge';
+import { PastAnswerSection } from '@/components/ui/PastAnswerSection';
 
 interface SimilarPastQuestionPanelProps {
   questions: PastQuestion[];
@@ -36,9 +37,7 @@ export function SimilarPastQuestionPanel({ questions }: SimilarPastQuestionPanel
               <p className="text-sm leading-relaxed text-[#374151] mb-3 whitespace-pre-wrap">
                 {q.question_text}
               </p>
-              <div className="rounded-md border border-dashed border-[#CBD5E1] bg-[#F8FAFC] px-3 py-2">
-                <p className="text-xs text-[#94A3B8]">논술형 — 직접 답안을 작성해 보세요</p>
-              </div>
+              <PastAnswerSection question={q} />
             </div>
           ))}
         </div>

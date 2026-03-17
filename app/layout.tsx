@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { AccessKeyBanner } from "@/components/ui/AccessKeyBanner";
 
 export const metadata: Metadata = {
   title: "계리리스크관리 학습 참고",
@@ -14,6 +15,7 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body className="antialiased">
+        <AccessKeyBanner />
         {children}
       </body>
     </html>
