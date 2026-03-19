@@ -48,7 +48,7 @@ const SYSTEM_PROMPT = `당신은 30년 경력의 시니어 계리사이자 현�
 - 제공된 전문기관 참고자료가 있는 경우, 최신 동향·사례·수치를 답안에 구체적으로 인용하여 현장감 있는 답안을 작성할 것`;
 
 async function fetchKidiContext(
-  supabase: ReturnType<typeof import('@supabase/supabase-js').createClient>,
+  supabase: ReturnType<typeof import('@supabase/supabase-js').createClient<any, any, any>>,
   tags: string[]
 ): Promise<string> {
   if (!tags || tags.length === 0) return '';
@@ -61,7 +61,7 @@ async function fetchKidiContext(
     .overlaps('tags', tags)
     .order('exam_relevance', { ascending: true })
     .order('issue_no', { ascending: false })
-    .limit(4);
+    .limit(4) as { data: Array<{ issue_no: number; title: string; summary: string | null; published_month: string | null; exam_relevance: string }> | null };
 
   if (!data || data.length === 0) return '';
 
