@@ -7,6 +7,7 @@ interface AnswerButtonProps {
   questionText: string;
   questionMeta?: string;
   questionKey: string; // e.g. "past:{uuid}" | "virtual:{issue_date}:{no}"
+  tags?: string[];     // 관련 태그 — 전문기관 자료 참조에 사용
   restrictedYear?: boolean; // true → enforce year restriction if no access key
   truncateFirstParagraph?: boolean; // true → show only first paragraph if no access key
 }
@@ -15,6 +16,7 @@ export function AnswerButton({
   questionText,
   questionMeta,
   questionKey,
+  tags,
   restrictedYear,
   truncateFirstParagraph,
 }: AnswerButtonProps) {
@@ -47,7 +49,7 @@ export function AnswerButton({
       const res = await fetch('/api/answer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ questionText, questionMeta, questionKey }),
+        body: JSON.stringify({ questionText, questionMeta, questionKey, tags: tags ?? [] }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? '오류');

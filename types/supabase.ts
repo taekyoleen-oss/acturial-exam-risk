@@ -39,6 +39,93 @@ export type Database = {
   }
   public: {
     Tables: {
+      act_user_profiles: {
+        Row: {
+          id: string
+          email: string
+          name: string | null
+          status: string
+          created_at: string
+          approved_at: string | null
+          rejected_at: string | null
+        }
+        Insert: {
+          id: string
+          email: string
+          name?: string | null
+          status?: string
+          created_at?: string
+          approved_at?: string | null
+          rejected_at?: string | null
+        }
+        Update: {
+          id?: string
+          email?: string
+          name?: string | null
+          status?: string
+          created_at?: string
+          approved_at?: string | null
+          rejected_at?: string | null
+        }
+        Relationships: []
+      }
+      act_kidi_reports: {
+        Row: {
+          created_at: string
+          error_msg: string | null
+          exam_relevance: string
+          file_no: number | null
+          id: string
+          issue_no: number
+          key_points: Json
+          processed_at: string | null
+          published_month: string | null
+          source_file: string
+          status: string
+          study_notes: string | null
+          summary: string | null
+          tags: string[]
+          title: string
+          topic_category: string | null
+        }
+        Insert: {
+          created_at?: string
+          error_msg?: string | null
+          exam_relevance?: string
+          file_no?: number | null
+          id?: string
+          issue_no: number
+          key_points?: Json
+          processed_at?: string | null
+          published_month?: string | null
+          source_file: string
+          status?: string
+          study_notes?: string | null
+          summary?: string | null
+          tags?: string[]
+          title: string
+          topic_category?: string | null
+        }
+        Update: {
+          created_at?: string
+          error_msg?: string | null
+          exam_relevance?: string
+          file_no?: number | null
+          id?: string
+          issue_no?: number
+          key_points?: Json
+          processed_at?: string | null
+          published_month?: string | null
+          source_file?: string
+          status?: string
+          study_notes?: string | null
+          summary?: string | null
+          tags?: string[]
+          title?: string
+          topic_category?: string | null
+        }
+        Relationships: []
+      }
       act_ai_answers: {
         Row: {
           answer: string

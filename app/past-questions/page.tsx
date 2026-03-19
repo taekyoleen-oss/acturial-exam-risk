@@ -7,9 +7,13 @@ import {
 } from '@/lib/supabase/queries/past-questions';
 import { PastQuestionCard } from '@/components/past/PastQuestionCard';
 import { PastQuestionFilter } from '@/components/past/PastQuestionFilter';
+import { SiteHeader } from '@/components/ui/SiteHeader';
+import { getAuthState } from '@/lib/auth';
 import type { PastQuestion } from '@/types/question';
 
-export const revalidate = 3600;
+export const dynamic = 'force-dynamic';
+
+const GUEST_LIMIT = 3; // 비승인 사용자에게 보여줄 문제 수
 
 interface SearchParams {
   searchParams: Promise<{ year?: string; session?: string; tag?: string }>;
@@ -17,6 +21,7 @@ interface SearchParams {
 
 export default async function PastQuestionsPage({ searchParams }: SearchParams) {
   const { year, session, tag } = await searchParams;
+  const auth = await getAuthState();
 
   const selectedYear = year ? parseInt(year, 10) : null;
   const selectedSession = session ?? null;
@@ -25,23 +30,21 @@ export default async function PastQuestionsPage({ searchParams }: SearchParams) 
   const [years, tags, questions, sessions] = await Promise.all([
     getAvailableYears(),
     getAvailableTags(),
-    getPastQuestions({ year: selectedYear ?? undefined, session: selectedSession ?? undefined, tag: selectedTag ?? undefined }),
+    getPastQuestions({
+      year: selectedYear ?? undefined,
+      session: selectedSession ?? undefined,
+      tag: selectedTag ?? undefined,
+    }),
     selectedYear ? getAvailableSessionsByYear(selectedYear) : Promise.resolve([]),
   ]);
 
+  // 비승인 사용자는 최대 GUEST_LIMIT개만 표시
+  const visibleQuestions = auth.isApproved ? questions : questions.slice(0, GUEST_LIMIT);
+  const hiddenCount = questions.length - visibleQuestions.length;
+
   return (
     <main className="min-h-screen bg-[#F8FAFC]">
-      <header className="border-b border-[#E2E8F0] bg-white">
-        <div className="mx-auto max-w-5xl px-4 py-4 flex items-center justify-between">
-          <a href="/" className="text-lg font-semibold text-[#0F172A] hover:text-[#2563EB]">
-            계리리스크관리론 학습 참고
-          </a>
-          <nav className="flex gap-4 text-sm">
-            <a href="/weekly" className="text-[#64748B] hover:text-[#0F172A]">이번 주 예상 문제</a>
-            <span className="font-medium text-[#2563EB]">기출문제 조회</span>
-          </nav>
-        </div>
-      </header>
+      <SiteHeader auth={auth} currentPath="/past-questions" />
 
       <div className="mx-auto max-w-5xl px-4 py-8">
         <div className="mb-6">
@@ -49,12 +52,16 @@ export default async function PastQuestionsPage({ searchParams }: SearchParams) 
           <p className="text-sm text-[#64748B]">
             보험계리사 2차 계리리스크관리론 기출 논술형 문제 — 연도·회차·주제별 필터링 가능
           </p>
+          {!auth.isApproved && (
+            <p className="text-xs text-amber-600 mt-1">
+              ⚠️ 비승인 상태에서는 최대 {GUEST_LIMIT}개 문제만 열람할 수 있습니다.
+            </p>
+          )}
         </div>
 
         {years.length === 0 ? (
           <div className="rounded-xl border border-[#E2E8F0] bg-white p-12 text-center">
             <p className="text-[#64748B]">아직 등록된 기출문제가 없습니다.</p>
-            <p className="text-sm text-[#94A3B8] mt-1">관리자가 PDF를 업로드하면 문제가 등록됩니다.</p>
           </div>
         ) : (
           <>
@@ -71,24 +78,48 @@ export default async function PastQuestionsPage({ searchParams }: SearchParams) 
               </Suspense>
             </div>
 
-            <div className="mb-4 flex items-center justify-between">
-              <span className="text-sm text-[#64748B]">
-                {selectedYear ? `${selectedYear}년` : '전체'}
-                {selectedSession ? ` ${selectedSession}` : ''}
-                {selectedTag ? ` · ${selectedTag}` : ''}
-                {' '}{questions.length}문항
-              </span>
+            <div className="mb-4 text-sm text-[#64748B]">
+              {auth.isApproved
+                ? `${questions.length}문항`
+                : `${questions.length}문항 중 ${visibleQuestions.length}개 표시 (승인 회원: 전체 열람)`}
             </div>
 
-            {questions.length === 0 ? (
+            {visibleQuestions.length === 0 ? (
               <div className="rounded-xl border border-[#E2E8F0] bg-white p-12 text-center">
                 <p className="text-[#64748B]">해당 조건의 기출문제가 없습니다.</p>
               </div>
             ) : (
               <div className="space-y-4">
-                {questions.map((q) => (
-                  <PastQuestionCard key={q.id} question={q as unknown as PastQuestion} />
+                {visibleQuestions.map((q) => (
+                  <PastQuestionCard key={q.id} question={q as unknown as PastQuestion} isApproved={auth.isApproved} />
                 ))}
+
+                {/* 잠긴 문제 수 안내 */}
+                {hiddenCount > 0 && (
+                  <div className="rounded-xl border border-dashed border-[#CBD5E1] bg-white p-8 text-center">
+                    <div className="text-3xl mb-3">🔒</div>
+                    <p className="font-medium text-[#0F172A] mb-1">
+                      {hiddenCount}개 문항이 더 있습니다
+                    </p>
+                    <p className="text-sm text-[#64748B] mb-4">
+                      전체 기출문제는 승인 회원만 이용할 수 있습니다.
+                    </p>
+                    <div className="flex gap-2 justify-center">
+                      <a
+                        href="/signup"
+                        className="rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
+                      >
+                        회원가입 신청
+                      </a>
+                      <a
+                        href="/login"
+                        className="rounded-lg border border-[#E2E8F0] px-4 py-2 text-sm font-medium text-[#0F172A] hover:bg-[#F8FAFC] transition-colors"
+                      >
+                        로그인
+                      </a>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </>

@@ -28,22 +28,61 @@ interface PdfImport {
   completed_at: string | null;
 }
 
+interface UserProfile {
+  id: string;
+  email: string;
+  name: string | null;
+  status: string;
+  created_at: string;
+  approved_at: string | null;
+  rejected_at: string | null;
+}
+
 interface AdminClientProps {
   initialBatchStatus: BatchStatus[];
   initialNewsSources: NewsSource[];
   initialPdfImports: PdfImport[];
+  initialPendingUsers: UserProfile[];
 }
 
 export function AdminClient({
   initialBatchStatus,
   initialNewsSources,
   initialPdfImports,
+  initialPendingUsers,
 }: AdminClientProps) {
-  const [tab, setTab] = useState<'batch' | 'news' | 'pdf'>('batch');
+  const [tab, setTab] = useState<'users' | 'batch' | 'news' | 'pdf'>('users');
+  const [pendingUsers, setPendingUsers] = useState(initialPendingUsers);
+  const [approvedUsers, setApprovedUsers] = useState<UserProfile[]>([]);
+  const [usersTab, setUsersTab] = useState<'pending' | 'approved'>('pending');
+  const [userActionMsg, setUserActionMsg] = useState('');
   const [newsSources, setNewsSources] = useState(initialNewsSources);
   const [pdfImports, setPdfImports] = useState(initialPdfImports);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadMsg, setUploadMsg] = useState('');
+
+  // 회원 승인/거절
+  const handleUserAction = async (userId: string, action: 'approve' | 'reject') => {
+    const res = await fetch('/api/admin/users', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, action }),
+    });
+    if (res.ok) {
+      setPendingUsers((prev) => prev.filter((u) => u.id !== userId));
+      setUserActionMsg(action === 'approve' ? '✅ 승인되었습니다.' : '❌ 거절되었습니다.');
+      setTimeout(() => setUserActionMsg(''), 3000);
+    }
+  };
+
+  // 승인된 회원 목록 로드
+  const loadApprovedUsers = async () => {
+    const res = await fetch('/api/admin/users?status=approved');
+    if (res.ok) {
+      const data = await res.json();
+      setApprovedUsers(data.data ?? []);
+    }
+  };
 
   // 뉴스 소스 활성화 토글
   const toggleNewsSource = async (id: string, current: boolean) => {
@@ -125,6 +164,21 @@ export function AdminClient({
     alert(res.ok ? '배치 트리거 완료' : '배치 트리거 실패');
   };
 
+  // 답안 캐시 초기화
+  const [clearMsg, setClearMsg] = useState('');
+  const clearAnswerCache = async (prefix: 'all' | 'past' | 'virtual' | 'kidi') => {
+    const labels: Record<string, string> = { all: '전체', past: '기출문제', virtual: '예상문제', kidi: '전문기관 반영' };
+    if (!confirm(`${labels[prefix]} 답안 캐시를 삭제할까요? 삭제 후 다시 생성됩니다.`)) return;
+    const res = await fetch(`/api/admin/clear-answers?prefix=${prefix}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (res.ok) {
+      setClearMsg(`✅ ${labels[prefix]} 답안 ${data.deleted}개 삭제 완료`);
+    } else {
+      setClearMsg(`❌ 오류: ${data.error}`);
+    }
+    setTimeout(() => setClearMsg(''), 5000);
+  };
+
   const statusColor: Record<string, string> = {
     published: 'text-green-600',
     failed: 'text-red-600',
@@ -137,21 +191,131 @@ export function AdminClient({
   return (
     <div>
       {/* 탭 */}
-      <div className="flex gap-1 border-b border-[#E2E8F0] mb-6">
-        {(['batch', 'news', 'pdf'] as const).map((t) => (
+      <div className="flex gap-1 border-b border-[#E2E8F0] mb-6 overflow-x-auto">
+        {([
+          { key: 'users', label: `👥 회원 관리${pendingUsers.length > 0 ? ` (${pendingUsers.length})` : ''}` },
+          { key: 'batch', label: '🔄 배치 상태' },
+          { key: 'news',  label: '📰 뉴스 소스' },
+          { key: 'pdf',   label: '📄 기출 PDF' },
+        ] as const).map(({ key, label }) => (
           <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-              tab === t
+            key={key}
+            onClick={() => setTab(key)}
+            className={`px-4 py-2 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
+              tab === key
                 ? 'border-[#2563EB] text-[#2563EB]'
                 : 'border-transparent text-[#64748B] hover:text-[#0F172A]'
             }`}
           >
-            {t === 'batch' ? '🔄 배치 상태' : t === 'news' ? '📰 뉴스 소스' : '📄 기출 PDF'}
+            {label}
           </button>
         ))}
       </div>
+
+      {/* 회원 관리 */}
+      {tab === 'users' && (
+        <div>
+          <h3 className="font-semibold text-[#0F172A] mb-4">회원 관리</h3>
+          {userActionMsg && (
+            <div className="mb-4 rounded-lg bg-[#F0FDF4] border border-green-200 px-4 py-2 text-sm text-green-700">
+              {userActionMsg}
+            </div>
+          )}
+
+          {/* 서브탭 */}
+          <div className="flex gap-2 mb-4">
+            <button
+              onClick={() => setUsersTab('pending')}
+              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                usersTab === 'pending' ? 'bg-amber-500 text-white' : 'bg-[#F1F5F9] text-[#64748B] hover:bg-[#E2E8F0]'
+              }`}
+            >
+              대기 중 ({pendingUsers.length})
+            </button>
+            <button
+              onClick={() => { setUsersTab('approved'); loadApprovedUsers(); }}
+              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                usersTab === 'approved' ? 'bg-emerald-600 text-white' : 'bg-[#F1F5F9] text-[#64748B] hover:bg-[#E2E8F0]'
+              }`}
+            >
+              승인 완료
+            </button>
+          </div>
+
+          {/* 대기 중 */}
+          {usersTab === 'pending' && (
+            <div className="rounded-xl border border-[#E2E8F0] bg-white overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[#E2E8F0] bg-[#F8FAFC]">
+                    <th className="px-4 py-2 text-left font-medium text-[#64748B]">이름</th>
+                    <th className="px-4 py-2 text-left font-medium text-[#64748B]">이메일</th>
+                    <th className="px-4 py-2 text-left font-medium text-[#64748B]">가입일</th>
+                    <th className="px-4 py-2 text-center font-medium text-[#64748B]">처리</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#F1F5F9]">
+                  {pendingUsers.length === 0 && (
+                    <tr><td colSpan={4} className="px-4 py-8 text-center text-[#64748B]">대기 중인 회원이 없습니다.</td></tr>
+                  )}
+                  {pendingUsers.map((u) => (
+                    <tr key={u.id}>
+                      <td className="px-4 py-3 text-[#0F172A]">{u.name ?? '-'}</td>
+                      <td className="px-4 py-3 text-[#64748B]">{u.email}</td>
+                      <td className="px-4 py-3 text-[#64748B]">{new Date(u.created_at).toLocaleDateString('ko-KR')}</td>
+                      <td className="px-4 py-3 text-center flex gap-2 justify-center">
+                        <button
+                          onClick={() => handleUserAction(u.id, 'approve')}
+                          className="rounded-lg bg-emerald-600 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-700"
+                        >
+                          승인
+                        </button>
+                        <button
+                          onClick={() => handleUserAction(u.id, 'reject')}
+                          className="rounded-lg border border-red-300 px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
+                        >
+                          거절
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* 승인 완료 */}
+          {usersTab === 'approved' && (
+            <div className="rounded-xl border border-[#E2E8F0] bg-white overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[#E2E8F0] bg-[#F8FAFC]">
+                    <th className="px-4 py-2 text-left font-medium text-[#64748B]">이름</th>
+                    <th className="px-4 py-2 text-left font-medium text-[#64748B]">이메일</th>
+                    <th className="px-4 py-2 text-left font-medium text-[#64748B]">가입일</th>
+                    <th className="px-4 py-2 text-left font-medium text-[#64748B]">승인일</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#F1F5F9]">
+                  {approvedUsers.length === 0 && (
+                    <tr><td colSpan={4} className="px-4 py-8 text-center text-[#64748B]">데이터 로드 중…</td></tr>
+                  )}
+                  {approvedUsers.map((u) => (
+                    <tr key={u.id}>
+                      <td className="px-4 py-3 text-[#0F172A]">{u.name ?? '-'}</td>
+                      <td className="px-4 py-3 text-[#64748B]">{u.email}</td>
+                      <td className="px-4 py-3 text-[#64748B]">{new Date(u.created_at).toLocaleDateString('ko-KR')}</td>
+                      <td className="px-4 py-3 text-[#64748B]">
+                        {u.approved_at ? new Date(u.approved_at).toLocaleDateString('ko-KR') : '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 배치 상태 */}
       {tab === 'batch' && (
@@ -164,6 +328,29 @@ export function AdminClient({
             >
               수동 트리거
             </button>
+          </div>
+
+          {/* 답안 캐시 초기화 */}
+          <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <h4 className="text-sm font-semibold text-amber-800 mb-1">AI 답안 캐시 초기화</h4>
+            <p className="text-xs text-amber-700 mb-3">
+              전문기관 자료를 답안에 반영하려면 기존 캐시를 삭제해야 합니다. 삭제 후 사용자가 답안 확인 시 자동으로 재생성됩니다.
+            </p>
+            {clearMsg && <p className="text-xs text-amber-900 mb-2 font-medium">{clearMsg}</p>}
+            <div className="flex flex-wrap gap-2">
+              <button onClick={() => clearAnswerCache('past')}
+                className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100">
+                기출문제 답안 초기화
+              </button>
+              <button onClick={() => clearAnswerCache('virtual')}
+                className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100">
+                예상문제 답안 초기화
+              </button>
+              <button onClick={() => clearAnswerCache('all')}
+                className="rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50">
+                전체 초기화
+              </button>
+            </div>
           </div>
           <div className="rounded-xl border border-[#E2E8F0] bg-white overflow-hidden">
             <table className="w-full text-sm">

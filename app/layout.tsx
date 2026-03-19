@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "katex/dist/katex.min.css";
-import { AccessKeyBanner } from "@/components/ui/AccessKeyBanner";
 
 export const metadata: Metadata = {
   title: "계리리스크관리 학습 참고",
@@ -16,7 +15,6 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body className="antialiased">
-        <AccessKeyBanner />
         {children}
         <footer className="mt-16 border-t border-[#E2E8F0] bg-[#F8FAFC] py-8 text-center">
           <p className="text-sm text-[#64748B] mb-2">더 많은 앱을 활용하거나 만들고 싶으면</p>

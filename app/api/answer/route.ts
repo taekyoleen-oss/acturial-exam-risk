@@ -27,18 +27,44 @@ const SYSTEM_PROMPT = `당신은 30년 경력의 시니어 계리사이자 현�
 [작성 스타일]
 - 전문 용어를 정확하게 사용하고, 개조식과 서술식을 혼용
 - 실제 시험 답안지 2~3페이지 분량으로 상세하게 작성 (최소 1,500자 이상)
-- 논리가 끊기지 않도록 목차 간 연결성 확보`;
+- 논리가 끊기지 않도록 목차 간 연결성 확보
+- 제공된 전문기관 참고자료가 있는 경우, 최신 동향·사례·수치를 답안에 구체적으로 인용하여 현장감 있는 답안을 작성할 것`;
+
+async function fetchKidiContext(tags: string[]): Promise<string> {
+  if (!tags || tags.length === 0) return '';
+
+  const { data } = await supabaseAdmin
+    .from('act_kidi_reports')
+    .select('issue_no, title, summary, published_month, exam_relevance')
+    .eq('status', 'processed')
+    .in('exam_relevance', ['high', 'medium'])
+    .overlaps('tags', tags)
+    .order('exam_relevance', { ascending: true }) // high 먼저
+    .order('issue_no', { ascending: false })       // 최신 먼저
+    .limit(4);
+
+  if (!data || data.length === 0) return '';
+
+  const lines = data.map((r, i) => {
+    const label = r.published_month ?? `제${r.issue_no}호`;
+    const summary = r.summary ? r.summary.slice(0, 400) : '';
+    return `${i + 1}. [${label}] ${r.title}\n   ${summary}`;
+  });
+
+  return `\n\n[전문기관(보험연구원) 참고자료 — 최신 동향을 답안에 반영하세요]\n${lines.join('\n\n')}`;
+}
 
 export async function POST(request: NextRequest) {
   try {
-    const { questionText, questionMeta, questionKey } = await request.json();
+    const { questionText, questionMeta, questionKey, tags } = await request.json();
 
     if (!questionText || typeof questionText !== 'string') {
       return NextResponse.json({ error: '문제 텍스트가 필요합니다.' }, { status: 400 });
     }
 
-    // 1. DB 캐시 확인
-    if (questionKey) {
+    // 1. DB 캐시 확인 (tags가 없는 경우에만 캐시 사용 — tags가 있으면 최신 KIDI 반영 위해 재생성 가능)
+    const useTags = Array.isArray(tags) && tags.length > 0;
+    if (questionKey && !useTags) {
       const { data: cached } = await supabaseAdmin
         .from('act_ai_answers')
         .select('answer')
@@ -50,9 +76,26 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 2. Claude로 답안 생성
+    // tags가 있을 때: KIDI 캐시 여부 확인 (kidi_ prefix 키 사용)
+    const cacheKey = useTags ? `${questionKey}:kidi` : questionKey;
+    if (useTags && cacheKey) {
+      const { data: cached } = await supabaseAdmin
+        .from('act_ai_answers')
+        .select('answer')
+        .eq('question_key', cacheKey)
+        .single();
+
+      if (cached?.answer) {
+        return NextResponse.json({ answer: cached.answer, cached: true });
+      }
+    }
+
+    // 2. KIDI 참고자료 조회
+    const kidiContext = useTags ? await fetchKidiContext(tags) : '';
+
+    // 3. Claude로 답안 생성
     const metaPrefix = questionMeta ? `[${questionMeta}]\n\n` : '';
-    const userPrompt = `다음 보험계리사 2차 시험 '계리리스크관리' 문제에 대한 모범 답안을 작성해 주세요.\n\n${metaPrefix}[문제]\n${questionText}`;
+    const userPrompt = `다음 보험계리사 2차 시험 '계리리스크관리' 문제에 대한 모범 답안을 작성해 주세요.\n\n${metaPrefix}[문제]\n${questionText}${kidiContext}`;
 
     const message = await client.messages.create({
       model: 'claude-sonnet-4-6',
@@ -66,12 +109,13 @@ export async function POST(request: NextRequest) {
       .map((b) => (b as { type: 'text'; text: string }).text)
       .join('\n');
 
-    // 3. DB에 캐시 저장
-    if (questionKey && answer) {
+    // 4. DB에 캐시 저장
+    const saveKey = cacheKey || questionKey;
+    if (saveKey && answer) {
       await supabaseAdmin
         .from('act_ai_answers')
         .upsert(
-          { question_key: questionKey, answer, updated_at: new Date().toISOString() },
+          { question_key: saveKey, answer, updated_at: new Date().toISOString() },
           { onConflict: 'question_key' }
         );
     }

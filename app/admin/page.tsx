@@ -14,7 +14,7 @@ export default async function AdminPage() {
     notFound();
   }
 
-  const [batchStatus, newsSources, pdfImports] = await Promise.all([
+  const [batchStatus, newsSources, pdfImports, pendingUsers] = await Promise.all([
     getRecentBatchStatus(8),
     supabaseAdmin.from('act_news_sources').select('*').order('name'),
     supabaseAdmin
@@ -22,6 +22,11 @@ export default async function AdminPage() {
       .select('*')
       .order('uploaded_at', { ascending: false })
       .limit(20),
+    supabaseAdmin
+      .from('act_user_profiles')
+      .select('id, email, name, status, created_at, approved_at, rejected_at')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false }),
   ]);
 
   return (
@@ -46,6 +51,7 @@ export default async function AdminPage() {
           initialBatchStatus={batchStatus}
           initialNewsSources={newsSources.data ?? []}
           initialPdfImports={pdfImports.data ?? []}
+          initialPendingUsers={pendingUsers.data ?? []}
         />
       </div>
     </main>

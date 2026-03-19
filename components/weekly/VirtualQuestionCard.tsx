@@ -2,13 +2,16 @@ import type { VirtualQuestion } from '@/types/question';
 import { RagSourceBadge } from '@/components/ui/RagSourceBadge';
 import { AnswerButton } from '@/components/ui/AnswerButton';
 import { MathText } from '@/components/ui/MathText';
+import { RelatedKidiSection } from '@/components/ui/RelatedKidiSection';
 
 interface VirtualQuestionCardProps {
   question: VirtualQuestion;
   issueDate: string; // e.g. "2026-03-16"
+  tags?: string[];   // article.keywords — 전문기관 자료 참조용
+  isApproved?: boolean;
 }
 
-export function VirtualQuestionCard({ question, issueDate }: VirtualQuestionCardProps) {
+export function VirtualQuestionCard({ question, issueDate, tags = [], isApproved = false }: VirtualQuestionCardProps) {
   return (
     <div className="rounded-lg border border-[#E2E8F0] bg-white overflow-hidden">
       {/* 상단 번호 스트라이프 */}
@@ -40,8 +43,10 @@ export function VirtualQuestionCard({ question, issueDate }: VirtualQuestionCard
           questionText={question.stem}
           questionMeta={`예상 문제 ${question.no} (${issueDate} AI 생성)`}
           questionKey={`virtual:${issueDate}:${question.no}`}
+          tags={tags}
           truncateFirstParagraph
         />
+        <RelatedKidiSection tags={tags} isApproved={isApproved} />
       </div>
     </div>
   );

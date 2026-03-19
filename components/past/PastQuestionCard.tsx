@@ -2,12 +2,14 @@ import type { PastQuestion } from '@/types/question';
 import { SubjectBadge } from '@/components/ui/SubjectBadge';
 import { PastAnswerSection } from '@/components/ui/PastAnswerSection';
 import { MathText } from '@/components/ui/MathText';
+import { RelatedKidiSection } from '@/components/ui/RelatedKidiSection';
 
 interface PastQuestionCardProps {
   question: PastQuestion;
+  isApproved?: boolean;
 }
 
-export function PastQuestionCard({ question }: PastQuestionCardProps) {
+export function PastQuestionCard({ question, isApproved = false }: PastQuestionCardProps) {
   return (
     <div className="rounded-lg border border-[#E2E8F0] bg-white overflow-hidden">
       <div className="flex items-center gap-2 border-l-4 border-[#0891B2] bg-[#0891B2]/5 px-4 py-2 flex-wrap">
@@ -49,6 +51,7 @@ export function PastQuestionCard({ question }: PastQuestionCardProps) {
         </div>
 
         <PastAnswerSection question={question} />
+        <RelatedKidiSection tags={question.tags ?? []} isApproved={isApproved} />
       </div>
     </div>
   );
