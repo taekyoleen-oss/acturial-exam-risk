@@ -1,20 +1,25 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "katex/dist/katex.min.css";
+import { getAuthState } from "@/lib/auth";
+import { CopyProtection } from "@/components/copy-protection";
 
 export const metadata: Metadata = {
   title: "계리리스크관리 학습 참고",
   description: "보험계리사 2차 계리리스크관리 — 주간 뉴스 기반 가상 문제 및 기출문제 참고 서비스",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const { isAdmin } = await getAuthState();
+
   return (
     <html lang="ko">
       <body className="antialiased">
+        <CopyProtection isAdmin={isAdmin} />
         {children}
         <footer className="mt-16 border-t border-[#E2E8F0] bg-[#F8FAFC] py-8 text-center">
           <p className="text-sm text-[#64748B] mb-2">더 많은 앱을 활용하거나 만들고 싶으면</p>
