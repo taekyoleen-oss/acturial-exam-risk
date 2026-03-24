@@ -157,11 +157,27 @@ export function AdminClient({
   };
 
   // 수동 배치 트리거
+  const [isTriggeringBatch, setIsTriggeringBatch] = useState(false);
+  const [batchMsg, setBatchMsg] = useState('');
   const triggerBatch = async () => {
-    const res = await fetch('/api/cron/weekly', {
-      headers: { Authorization: `Bearer ${prompt('CRON_SECRET 입력:') ?? ''}` },
-    });
-    alert(res.ok ? '배치 트리거 완료' : '배치 트리거 실패');
+    if (!confirm('이번 주 예상문제를 지금 생성할까요?')) return;
+    setIsTriggeringBatch(true);
+    setBatchMsg('');
+    try {
+      const res = await fetch('/api/admin/trigger-weekly', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) {
+        setBatchMsg(`❌ 오류: ${data.error ?? '알 수 없는 오류'}`);
+      } else if (data.skipped) {
+        setBatchMsg(`ℹ️ ${data.message}`);
+      } else {
+        setBatchMsg(`✅ 생성 완료 — ${data.weekLabel} / 기사 ${data.articles}개 / 문제 ${data.questions}개`);
+      }
+    } catch {
+      setBatchMsg('❌ 네트워크 오류');
+    } finally {
+      setIsTriggeringBatch(false);
+    }
   };
 
   // 답안 캐시 초기화
@@ -324,11 +340,21 @@ export function AdminClient({
             <h3 className="font-semibold text-[#0F172A]">최근 주간 배치 현황</h3>
             <button
               onClick={triggerBatch}
-              className="rounded-lg bg-[#2563EB] px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
+              disabled={isTriggeringBatch}
+              className="rounded-lg bg-[#2563EB] px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              수동 트리거
+              {isTriggeringBatch ? '생성 중…' : '이번 주 예상문제 생성'}
             </button>
           </div>
+          {batchMsg && (
+            <div className={`mb-4 rounded-lg border px-4 py-2 text-sm ${
+              batchMsg.startsWith('✅') ? 'bg-[#F0FDF4] border-green-200 text-green-700' :
+              batchMsg.startsWith('ℹ️') ? 'bg-blue-50 border-blue-200 text-blue-700' :
+              'bg-red-50 border-red-200 text-red-700'
+            }`}>
+              {batchMsg}
+            </div>
+          )}
 
           {/* 답안 캐시 초기화 */}
           <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4">
