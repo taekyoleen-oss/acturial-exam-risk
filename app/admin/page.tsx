@@ -52,6 +52,7 @@ export default async function AdminPage() {
           initialNewsSources={newsSources.data ?? []}
           initialPdfImports={pdfImports.data ?? []}
           initialPendingUsers={pendingUsers.data ?? []}
+          adminId={adminId}
         />
       </div>
     </main>

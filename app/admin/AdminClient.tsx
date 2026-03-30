@@ -43,6 +43,7 @@ interface AdminClientProps {
   initialNewsSources: NewsSource[];
   initialPdfImports: PdfImport[];
   initialPendingUsers: UserProfile[];
+  adminId: string;
 }
 
 export function AdminClient({
@@ -50,6 +51,7 @@ export function AdminClient({
   initialNewsSources,
   initialPdfImports,
   initialPendingUsers,
+  adminId,
 }: AdminClientProps) {
   const [tab, setTab] = useState<'users' | 'batch' | 'news' | 'pdf'>('users');
   const [pendingUsers, setPendingUsers] = useState(initialPendingUsers);
@@ -65,7 +67,7 @@ export function AdminClient({
   const handleUserAction = async (userId: string, action: 'approve' | 'reject') => {
     const res = await fetch('/api/admin/users', {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-admin-id': adminId },
       body: JSON.stringify({ userId, action }),
     });
     if (res.ok) {
@@ -77,7 +79,9 @@ export function AdminClient({
 
   // 승인된 회원 목록 로드
   const loadApprovedUsers = async () => {
-    const res = await fetch('/api/admin/users?status=approved');
+    const res = await fetch('/api/admin/users?status=approved', {
+      headers: { 'x-admin-id': adminId },
+    });
     if (res.ok) {
       const data = await res.json();
       setApprovedUsers(data.data ?? []);
@@ -88,7 +92,7 @@ export function AdminClient({
   const toggleNewsSource = async (id: string, current: boolean) => {
     const res = await fetch('/api/admin/news-sources', {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', 'x-admin-id': '' },
+      headers: { 'Content-Type': 'application/json', 'x-admin-id': adminId },
       body: JSON.stringify({ id, is_active: !current }),
     });
     if (res.ok) {
@@ -105,7 +109,7 @@ export function AdminClient({
     if (!newName || !newDomain) return;
     const res = await fetch('/api/admin/news-sources', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-admin-id': adminId },
       body: JSON.stringify({ name: newName, domain: newDomain }),
     });
     if (res.ok) {
@@ -118,7 +122,10 @@ export function AdminClient({
 
   // 뉴스 소스 삭제
   const deleteNewsSource = async (id: string) => {
-    const res = await fetch(`/api/admin/news-sources?id=${id}`, { method: 'DELETE' });
+    const res = await fetch(`/api/admin/news-sources?id=${id}`, {
+      method: 'DELETE',
+      headers: { 'x-admin-id': adminId },
+    });
     if (res.ok) setNewsSources((prev) => prev.filter((s) => s.id !== id));
   };
 
@@ -132,7 +139,11 @@ export function AdminClient({
     const form = new FormData();
     form.append('file', file);
     form.append('year', String(pdfYear));
-    const res = await fetch('/api/admin/pdf-import', { method: 'POST', body: form });
+    const res = await fetch('/api/admin/pdf-import', {
+      method: 'POST',
+      headers: { 'x-admin-id': adminId },
+      body: form,
+    });
     const data = await res.json();
     if (res.ok) {
       setUploadMsg(`✅ 처리 시작됨 (importId: ${data.importId})`);
@@ -164,7 +175,10 @@ export function AdminClient({
     setIsTriggeringBatch(true);
     setBatchMsg('');
     try {
-      const res = await fetch('/api/admin/trigger-weekly', { method: 'POST' });
+      const res = await fetch('/api/admin/trigger-weekly', {
+        method: 'POST',
+        headers: { 'x-admin-id': adminId },
+      });
       const data = await res.json();
       if (!res.ok) {
         setBatchMsg(`❌ 오류: ${data.error ?? '알 수 없는 오류'}`);
@@ -185,7 +199,10 @@ export function AdminClient({
   const clearAnswerCache = async (prefix: 'all' | 'past' | 'virtual' | 'kidi') => {
     const labels: Record<string, string> = { all: '전체', past: '기출문제', virtual: '예상문제', kidi: '전문기관 반영' };
     if (!confirm(`${labels[prefix]} 답안 캐시를 삭제할까요? 삭제 후 다시 생성됩니다.`)) return;
-    const res = await fetch(`/api/admin/clear-answers?prefix=${prefix}`, { method: 'DELETE' });
+    const res = await fetch(`/api/admin/clear-answers?prefix=${prefix}`, {
+      method: 'DELETE',
+      headers: { 'x-admin-id': adminId },
+    });
     const data = await res.json();
     if (res.ok) {
       setClearMsg(`✅ ${labels[prefix]} 답안 ${data.deleted}개 삭제 완료`);
