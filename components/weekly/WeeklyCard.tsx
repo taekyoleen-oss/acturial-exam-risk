@@ -54,7 +54,7 @@ export function WeeklyCard({
       )}
 
       {/* 관련 기출 패널 */}
-      <SimilarPastQuestionPanel questions={similarPastQuestions} />
+      <SimilarPastQuestionPanel questions={similarPastQuestions} isApproved={isApproved} />
     </div>
   );
 }

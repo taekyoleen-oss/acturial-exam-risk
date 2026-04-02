@@ -10,6 +10,7 @@ interface AnswerButtonProps {
   tags?: string[];     // 관련 태그 — 전문기관 자료 참조에 사용
   restrictedYear?: boolean; // true → enforce year restriction if no access key
   truncateFirstParagraph?: boolean; // true → show only first paragraph if no access key
+  isApproved?: boolean; // true → bypass restrictions
 }
 
 export function AnswerButton({
@@ -19,6 +20,7 @@ export function AnswerButton({
   tags,
   restrictedYear,
   truncateFirstParagraph,
+  isApproved = false,
 }: AnswerButtonProps) {
   const [state, setState] = useState<'idle' | 'loading' | 'done' | 'error' | 'restricted'>('idle');
   const [answer, setAnswer] = useState<string>('');
@@ -36,8 +38,8 @@ export function AnswerButton({
       return;
     }
 
-    // Year restriction: block entirely if no key
-    if (restrictedYear && !hasKey) {
+    // Year restriction: block entirely if no key (except approved users)
+    if (restrictedYear && !hasKey && !isApproved) {
       setState('restricted');
       setOpen(true);
       return;
@@ -62,15 +64,16 @@ export function AnswerButton({
     }
   };
 
-  // Compute display answer — truncate to 10 lines if no access key
+  // Compute display answer — truncate to 10 lines if no access key (except approved users)
   const lines = answer ? answer.split('\n') : [];
   const VISIBLE_LINES = 20;
+  const requireKey = !hasKey && !isApproved;
   const displayAnswer =
-    truncateFirstParagraph && !hasKey && lines.length > VISIBLE_LINES
+    truncateFirstParagraph && requireKey && lines.length > VISIBLE_LINES
       ? lines.slice(0, VISIBLE_LINES).join('\n')
       : answer;
   const isTruncated =
-    truncateFirstParagraph && !hasKey && lines.length > VISIBLE_LINES;
+    truncateFirstParagraph && requireKey && lines.length > VISIBLE_LINES;
 
   return (
     <div className="mt-3">

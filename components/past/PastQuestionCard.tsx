@@ -50,7 +50,7 @@ export function PastQuestionCard({ question, isApproved = false }: PastQuestionC
           <p className="text-xs text-[#94A3B8]">논술형 — 직접 답안을 작성해 보세요</p>
         </div>
 
-        <PastAnswerSection question={question} />
+        <PastAnswerSection question={question} isApproved={isApproved} />
         <RelatedKidiSection tags={question.tags ?? []} isApproved={isApproved} />
       </div>
     </div>

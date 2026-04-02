@@ -7,9 +7,10 @@ import { PastAnswerSection } from '@/components/ui/PastAnswerSection';
 
 interface SimilarPastQuestionPanelProps {
   questions: PastQuestion[];
+  isApproved?: boolean;
 }
 
-export function SimilarPastQuestionPanel({ questions }: SimilarPastQuestionPanelProps) {
+export function SimilarPastQuestionPanel({ questions, isApproved = false }: SimilarPastQuestionPanelProps) {
   const [open, setOpen] = useState(false);
 
   if (!questions.length) return null;
@@ -37,7 +38,7 @@ export function SimilarPastQuestionPanel({ questions }: SimilarPastQuestionPanel
               <p className="text-sm leading-relaxed text-[#374151] mb-3 whitespace-pre-wrap">
                 {q.question_text}
               </p>
-              <PastAnswerSection question={q} />
+              <PastAnswerSection question={q} isApproved={isApproved} />
             </div>
           ))}
         </div>

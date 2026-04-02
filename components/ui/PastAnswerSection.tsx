@@ -5,9 +5,10 @@ import type { PastQuestion } from '@/types/question';
 
 interface Props {
   question: PastQuestion;
+  isApproved?: boolean;
 }
 
-export function PastAnswerSection({ question }: Props) {
+export function PastAnswerSection({ question, isApproved = false }: Props) {
   const currentYear = new Date().getFullYear();
   const isOldYear = question.year <= currentYear - 2;
 
@@ -18,6 +19,7 @@ export function PastAnswerSection({ question }: Props) {
       questionKey={`past:${question.id}`}
       tags={question.tags ?? []}
       restrictedYear={isOldYear}
+      isApproved={isApproved}
     />
   );
 }

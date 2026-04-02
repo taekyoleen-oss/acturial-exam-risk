@@ -45,6 +45,7 @@ export function VirtualQuestionCard({ question, issueDate, tags = [], isApproved
           questionKey={`virtual:${issueDate}:${question.no}`}
           tags={tags}
           truncateFirstParagraph
+          isApproved={isApproved}
         />
         <RelatedKidiSection tags={tags} isApproved={isApproved} />
       </div>
