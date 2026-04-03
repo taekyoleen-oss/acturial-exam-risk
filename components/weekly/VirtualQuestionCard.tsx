@@ -44,7 +44,6 @@ export function VirtualQuestionCard({ question, issueDate, tags = [], isApproved
           questionMeta={`예상 문제 ${question.no} (${issueDate} AI 생성)`}
           questionKey={`virtual:${issueDate}:${question.no}`}
           tags={tags}
-          truncateFirstParagraph
           isApproved={isApproved}
         />
         <RelatedKidiSection tags={tags} isApproved={isApproved} />

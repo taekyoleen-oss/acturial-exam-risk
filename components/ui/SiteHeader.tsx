@@ -55,6 +55,9 @@ export function SiteHeader({ auth, currentPath = '' }: Props) {
               <span className="text-xs text-[#64748B] hidden md:block truncate max-w-[120px]">
                 {auth.email}
               </span>
+              <a href="/settings" className="rounded-lg border border-transparent px-2 py-1 text-xs text-[#64748B] hover:bg-[#F1F5F9] hover:text-[#0F172A] transition-colors" title="내 정보 설정">
+                설정
+              </a>
               <LogoutButton className="rounded-lg border border-[#E2E8F0] px-2.5 py-1 text-xs text-[#64748B] hover:text-[#0F172A] hover:border-[#CBD5E1] transition-colors" />
             </div>
           ) : (

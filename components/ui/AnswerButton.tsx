@@ -8,8 +8,6 @@ interface AnswerButtonProps {
   questionMeta?: string;
   questionKey: string; // e.g. "past:{uuid}" | "virtual:{issue_date}:{no}"
   tags?: string[];     // 관련 태그 — 전문기관 자료 참조에 사용
-  restrictedYear?: boolean; // true → enforce year restriction if no access key
-  truncateFirstParagraph?: boolean; // true → show only first paragraph if no access key
   isApproved?: boolean; // true → bypass restrictions
 }
 
@@ -18,19 +16,12 @@ export function AnswerButton({
   questionMeta,
   questionKey,
   tags,
-  restrictedYear,
-  truncateFirstParagraph,
   isApproved = false,
 }: AnswerButtonProps) {
   const [state, setState] = useState<'idle' | 'loading' | 'done' | 'error' | 'restricted'>('idle');
   const [answer, setAnswer] = useState<string>('');
   const [cached, setCached] = useState(false);
   const [open, setOpen] = useState(false);
-  const [hasKey, setHasKey] = useState(false);
-
-  useEffect(() => {
-    setHasKey(!!localStorage.getItem('access_key'));
-  }, []);
 
   const handleClick = async () => {
     if (state === 'done') {
@@ -38,8 +29,7 @@ export function AnswerButton({
       return;
     }
 
-    // Year restriction: block entirely if no key (except approved users)
-    if (restrictedYear && !hasKey && !isApproved) {
+    if (!isApproved) {
       setState('restricted');
       setOpen(true);
       return;
@@ -64,16 +54,7 @@ export function AnswerButton({
     }
   };
 
-  // Compute display answer — truncate to 10 lines if no access key (except approved users)
-  const lines = answer ? answer.split('\n') : [];
-  const VISIBLE_LINES = 20;
-  const requireKey = !hasKey && !isApproved;
-  const displayAnswer =
-    truncateFirstParagraph && requireKey && lines.length > VISIBLE_LINES
-      ? lines.slice(0, VISIBLE_LINES).join('\n')
-      : answer;
-  const isTruncated =
-    truncateFirstParagraph && requireKey && lines.length > VISIBLE_LINES;
+  const displayAnswer = answer;
 
   return (
     <div className="mt-3">
@@ -100,7 +81,7 @@ export function AnswerButton({
         <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-4 flex items-start gap-2">
           <span className="text-amber-600 mt-0.5 shrink-0">🔒</span>
           <p className="text-sm text-amber-800">
-            허용되지 않은 사용자입니다. 상단에서 접근 키를 입력하시기 바랍니다.
+            허용되지 않은 사용자입니다. 관리자 승인 후 이용 가능합니다.
           </p>
         </div>
       )}
@@ -168,15 +149,6 @@ export function AnswerButton({
                   })}
                 </div>
 
-                {/* Truncation notice */}
-                {isTruncated && (
-                  <div className="mt-4 rounded-lg border border-[#CBD5E1] bg-[#F8FAFC] px-4 py-3 flex items-center gap-2">
-                    <span className="text-[#94A3B8] shrink-0">🔒</span>
-                    <p className="text-sm text-[#64748B]">
-                      전체 답안은 접근 키를 입력하신 후 이용 가능합니다.
-                    </p>
-                  </div>
-                )}
               </>
             )}
           </div>
