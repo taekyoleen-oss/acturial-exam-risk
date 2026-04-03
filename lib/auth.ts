@@ -56,12 +56,15 @@ export async function getAuthState(): Promise<AuthState> {
 
   const { data: profile } = await adminClient
     .from('act_user_profiles')
-    .select('status')
+    .select('status, approved_at')
     .eq('id', userId)
     .single();
 
   const profileStatus = profile?.status ?? 'pending';
-  const isApproved = profileStatus === 'approved';
+  // status가 'approved'이거나, 승인일이 기록된 경우(데이터 불일치 대비)
+  const isApproved =
+    profileStatus === 'approved' ||
+    (profile?.approved_at != null && profileStatus !== 'rejected');
 
   return {
     userId,

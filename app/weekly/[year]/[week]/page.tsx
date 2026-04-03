@@ -4,10 +4,12 @@ import { getPastQuestionsByIds } from '@/lib/supabase/queries/past-questions';
 import { getMondayByYearWeek } from '@/lib/utils/week';
 import { WeeklyCard } from '@/components/weekly/WeeklyCard';
 import { WeeklyArchiveNav } from '@/components/weekly/WeeklyArchiveNav';
+import { SiteHeader } from '@/components/ui/SiteHeader';
+import { getAuthState } from '@/lib/auth';
 import type { VirtualQuestion } from '@/types/question';
 import type { Article } from '@/types/weekly';
 
-export const revalidate = 86400; // 24시간 캐시 (과거 아카이브)
+export const dynamic = 'force-dynamic';
 
 interface Params {
   params: Promise<{ year: string; week: string }>;
@@ -22,7 +24,8 @@ export default async function WeeklyArchivePage({ params }: Params) {
 
   const issueDate = getMondayByYearWeek(yearNum, weekNum);
 
-  const [issue, archives] = await Promise.all([
+  const [auth, issue, archives] = await Promise.all([
+    getAuthState(),
     getWeeklyIssueByDate(issueDate),
     getWeeklyArchiveList(),
   ]);
@@ -38,17 +41,7 @@ export default async function WeeklyArchivePage({ params }: Params) {
 
   return (
     <main className="min-h-screen bg-[#F8FAFC]">
-      <header className="border-b border-[#E2E8F0] bg-white">
-        <div className="mx-auto max-w-5xl px-4 py-4 flex items-center justify-between">
-          <a href="/" className="text-lg font-semibold text-[#0F172A] hover:text-[#2563EB]">
-            계리리스크관리 학습 참고
-          </a>
-          <nav className="flex gap-4 text-sm">
-            <a href="/weekly" className="text-[#2563EB] hover:underline">이번 주 예상 문제</a>
-            <a href="/past-questions" className="text-[#64748B] hover:text-[#0F172A]">기출문제 조회</a>
-          </nav>
-        </div>
-      </header>
+      <SiteHeader auth={auth} currentPath="/weekly" />
 
       <div className="mx-auto max-w-5xl px-4 py-8">
           <div className="mb-6">
@@ -83,13 +76,31 @@ export default async function WeeklyArchivePage({ params }: Params) {
                     questions={questions}
                     similarPastQuestions={similarPast}
                     issueDate={issueDate}
+                    isApproved={auth.isApproved}
                   />
                 );
               })}
             </div>
 
             <div className="w-full lg:w-56 shrink-0">
-              <WeeklyArchiveNav archives={archives} currentIssueDate={issue.issue_date} />
+              {auth.isApproved ? (
+                <WeeklyArchiveNav archives={archives} currentIssueDate={issue.issue_date} />
+              ) : (
+                <div className="rounded-xl border border-[#E2E8F0] bg-white p-4 text-center">
+                  <div className="text-2xl mb-2">🔒</div>
+                  <p className="text-xs font-medium text-[#0F172A] mb-1">과거 아카이브</p>
+                  <p className="text-xs text-[#64748B] mb-3">
+                    {archives.length}개 이슈 보관 중
+                    <br />승인 회원만 이용 가능합니다.
+                  </p>
+                  <a
+                    href="/signup"
+                    className="inline-block rounded-lg bg-[#2563EB] px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 transition-colors"
+                  >
+                    회원가입
+                  </a>
+                </div>
+              )}
             </div>
           </div>
       </div>

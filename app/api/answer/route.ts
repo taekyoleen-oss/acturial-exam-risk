@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { getAuthState } from '@/lib/auth';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -56,6 +57,14 @@ async function fetchKidiContext(tags: string[]): Promise<string> {
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await getAuthState();
+    if (!auth.isLoggedIn || !auth.isApproved) {
+      return NextResponse.json(
+        { error: '승인된 회원만 답안을 이용할 수 있습니다.' },
+        { status: 403 }
+      );
+    }
+
     const { questionText, questionMeta, questionKey, tags } = await request.json();
 
     if (!questionText || typeof questionText !== 'string') {
