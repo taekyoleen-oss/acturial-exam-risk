@@ -68,3 +68,18 @@ export async function getRecentBatchStatus(limit = 8) {
   if (error) throw error;
   return data ?? [];
 }
+
+/** 최근 N주 발행된 이슈의 questions 배열 반환 (topic_tag 중복 방지용) */
+export async function getRecentPublishedQuestions(weeks = 4): Promise<Json[]> {
+  const { data, error } = await supabaseAdmin
+    .from('act_weekly_issues')
+    .select('questions')
+    .eq('status', 'published')
+    .order('issue_date', { ascending: false })
+    .limit(weeks);
+
+  if (error) return [];
+  return (data ?? []).flatMap((row) =>
+    Array.isArray(row.questions) ? (row.questions as Json[]) : []
+  );
+}

@@ -46,6 +46,13 @@ interface AdminClientProps {
   adminId: string;
 }
 
+interface KidiImportStatus {
+  total: number;
+  processed: number;
+  failed: number;
+  pending: number;
+}
+
 export function AdminClient({
   initialBatchStatus,
   initialNewsSources,
@@ -53,7 +60,7 @@ export function AdminClient({
   initialPendingUsers,
   adminId,
 }: AdminClientProps) {
-  const [tab, setTab] = useState<'users' | 'batch' | 'news' | 'pdf'>('users');
+  const [tab, setTab] = useState<'users' | 'batch' | 'news' | 'pdf' | 'kidi'>('users');
   const [pendingUsers, setPendingUsers] = useState(initialPendingUsers);
   const [approvedUsers, setApprovedUsers] = useState<UserProfile[]>([]);
   const [usersTab, setUsersTab] = useState<'pending' | 'approved'>('pending');
@@ -185,12 +192,100 @@ export function AdminClient({
       } else if (data.skipped) {
         setBatchMsg(`ℹ️ ${data.message}`);
       } else {
-        setBatchMsg(`✅ 생성 완료 — ${data.weekLabel} / 기사 ${data.articles}개 / 문제 ${data.questions}개`);
+        const avoided = data.recentTopicsAvoided?.length > 0
+        ? ` / 회피 주제: ${data.recentTopicsAvoided.join(', ')}`
+        : '';
+      setBatchMsg(`✅ 생성 완료 — ${data.weekLabel} / 기사 ${data.articles}개 / 문제 ${data.questions}개${avoided}`);
       }
     } catch {
       setBatchMsg('❌ 네트워크 오류');
     } finally {
       setIsTriggeringBatch(false);
+    }
+  };
+
+  // KIRI 보고서 임포트
+  const [kidiStatus, setKidiStatus] = useState<KidiImportStatus | null>(null);
+  const [kidiMsg, setKidiMsg] = useState('');
+  const [isKidiProcessing, setIsKidiProcessing] = useState(false);
+
+  const loadKidiStatus = async () => {
+    const res = await fetch('/api/admin/kidi-import', { headers: { 'x-admin-id': adminId } });
+    if (res.ok) setKidiStatus(await res.json());
+  };
+
+  const runKidiBatch = async () => {
+    setIsKidiProcessing(true);
+    setKidiMsg('');
+    try {
+      const res = await fetch('/api/admin/kidi-import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-id': adminId },
+        body: JSON.stringify({ batch_size: 10 }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setKidiMsg(`❌ 오류: ${data.error ?? '알 수 없는 오류'}`);
+      } else if (data.processed === 0 && data.failed === 0) {
+        setKidiMsg(`ℹ️ ${data.message ?? '처리할 파일이 없습니다.'}`);
+      } else {
+        setKidiMsg(`✅ 완료 — 성공 ${data.processed}개 / 실패 ${data.failed}개 / 남은 파일 ${data.remaining}개`);
+      }
+      await loadKidiStatus();
+    } catch {
+      setKidiMsg('❌ 네트워크 오류');
+    } finally {
+      setIsKidiProcessing(false);
+    }
+  };
+
+  // 학습 노트 생성
+  const [enrichMissing, setEnrichMissing] = useState<number | null>(null);
+  const [enrichMsg, setEnrichMsg] = useState('');
+  const [isEnriching, setIsEnriching] = useState(false);
+
+  const loadEnrichStatus = async () => {
+    const res = await fetch('/api/admin/kidi-enrich', { headers: { 'x-admin-id': adminId } });
+    if (res.ok) {
+      const data = await res.json();
+      setEnrichMissing(data.missing ?? 0);
+    }
+  };
+
+  const runEnrichBatch = async (runAll = false) => {
+    setIsEnriching(true);
+    setEnrichMsg('');
+    let totalProcessed = 0;
+    let totalFailed = 0;
+    try {
+      do {
+        const res = await fetch('/api/admin/kidi-enrich', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-admin-id': adminId },
+          body: JSON.stringify({ batch_size: 5 }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setEnrichMsg(`❌ 오류: ${data.error ?? '알 수 없는 오류'}`);
+          break;
+        }
+        totalProcessed += data.processed ?? 0;
+        totalFailed += data.failed ?? 0;
+        setEnrichMissing(data.remaining ?? 0);
+        if ((data.processed ?? 0) === 0 || !runAll || (data.remaining ?? 0) === 0) {
+          if (totalProcessed === 0 && totalFailed === 0) {
+            setEnrichMsg(`ℹ️ ${data.message ?? '생성할 학습 노트가 없습니다.'}`);
+          } else {
+            setEnrichMsg(`✅ 완료 — 성공 ${totalProcessed}개 / 실패 ${totalFailed}개 / 남은 ${data.remaining ?? 0}개`);
+          }
+          break;
+        }
+        setEnrichMsg(`⏳ 생성 중… 완료 ${totalProcessed}개 / 남은 ${data.remaining}개`);
+      } while (runAll);
+    } catch {
+      setEnrichMsg('❌ 네트워크 오류');
+    } finally {
+      setIsEnriching(false);
     }
   };
 
@@ -230,6 +325,7 @@ export function AdminClient({
           { key: 'batch', label: '🔄 배치 상태' },
           { key: 'news',  label: '📰 뉴스 소스' },
           { key: 'pdf',   label: '📄 기출 PDF' },
+          { key: 'kidi',  label: '📋 KIRI 보고서' },
         ] as const).map(({ key, label }) => (
           <button
             key={key}
@@ -485,6 +581,143 @@ export function AdminClient({
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* KIRI 보고서 임포트 */}
+      {tab === 'kidi' && (
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-[#0F172A]">KIRI 보고서 요약 처리</h3>
+            <button
+              onClick={loadKidiStatus}
+              className="rounded-lg border border-[#E2E8F0] px-3 py-1.5 text-xs font-medium text-[#64748B] hover:bg-[#F8FAFC]"
+            >
+              상태 새로고침
+            </button>
+          </div>
+
+          <p className="text-sm text-[#64748B] mb-4">
+            <code className="bg-[#F1F5F9] px-1.5 py-0.5 rounded text-xs">input-kidi/</code> 폴더의 PDF를
+            10개씩 읽어 Claude AI로 요약 후 전문기관 보고서에 등록합니다.
+          </p>
+
+          {/* 상태 카드 */}
+          {kidiStatus ? (
+            <div className="grid grid-cols-4 gap-3 mb-6">
+              {[
+                { label: '전체 파일', value: kidiStatus.total, color: 'text-[#0F172A]' },
+                { label: '처리 완료', value: kidiStatus.processed, color: 'text-green-600' },
+                { label: '미처리', value: kidiStatus.pending, color: 'text-amber-600' },
+                { label: '실패', value: kidiStatus.failed, color: 'text-red-600' },
+              ].map(({ label, value, color }) => (
+                <div key={label} className="rounded-xl border border-[#E2E8F0] bg-white p-4 text-center">
+                  <p className={`text-2xl font-bold ${color}`}>{value}</p>
+                  <p className="text-xs text-[#94A3B8] mt-1">{label}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-8 text-center mb-6">
+              <p className="text-sm text-[#94A3B8]">상태 새로고침 버튼을 눌러 현황을 확인하세요.</p>
+            </div>
+          )}
+
+          {/* 진행 바 */}
+          {kidiStatus && kidiStatus.total > 0 && (
+            <div className="mb-6">
+              <div className="flex justify-between text-xs text-[#64748B] mb-1">
+                <span>처리 진행률</span>
+                <span>{Math.round((kidiStatus.processed / kidiStatus.total) * 100)}%</span>
+              </div>
+              <div className="h-2 w-full rounded-full bg-[#E2E8F0] overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-[#0891B2] transition-all"
+                  style={{ width: `${(kidiStatus.processed / kidiStatus.total) * 100}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* 처리 버튼 */}
+          <div className="flex items-center gap-3 mb-4">
+            <button
+              onClick={runKidiBatch}
+              disabled={isKidiProcessing || kidiStatus?.pending === 0}
+              className="rounded-lg bg-[#0891B2] px-4 py-2 text-sm font-medium text-white hover:bg-[#0E7490] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isKidiProcessing ? '처리 중…' : '다음 10개 처리'}
+            </button>
+            <p className="text-xs text-[#94A3B8]">
+              한 번에 10개씩 처리합니다. 미처리 파일이 없어질 때까지 반복하세요.
+            </p>
+          </div>
+
+          {kidiMsg && (
+            <div className={`rounded-lg border px-4 py-2.5 text-sm mb-6 ${
+              kidiMsg.startsWith('✅') ? 'bg-[#F0FDF4] border-green-200 text-green-700' :
+              kidiMsg.startsWith('ℹ️') ? 'bg-blue-50 border-blue-200 text-blue-700' :
+              'bg-red-50 border-red-200 text-red-700'
+            }`}>
+              {kidiMsg}
+            </div>
+          )}
+
+          {/* 학습 노트 생성 */}
+          <div className="rounded-xl border border-[#E2E8F0] bg-white p-5">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h4 className="text-sm font-semibold text-[#0F172A]">📚 시험 학습 노트 생성</h4>
+                <p className="text-xs text-[#64748B] mt-0.5">
+                  요약 처리 완료 후, 학습 노트가 없는 보고서에 대해 AI로 시험 대비 노트를 생성합니다.
+                </p>
+              </div>
+              <button
+                onClick={loadEnrichStatus}
+                className="rounded-lg border border-[#E2E8F0] px-3 py-1.5 text-xs font-medium text-[#64748B] hover:bg-[#F8FAFC]"
+              >
+                현황 확인
+              </button>
+            </div>
+
+            {enrichMissing !== null && (
+              <div className="flex items-center gap-2 mb-3">
+                <span className={`text-sm font-medium ${enrichMissing > 0 ? 'text-amber-600' : 'text-green-600'}`}>
+                  {enrichMissing > 0 ? `학습 노트 미생성: ${enrichMissing}개` : '✅ 모든 보고서에 학습 노트가 있습니다'}
+                </span>
+              </div>
+            )}
+
+            <div className="flex items-center gap-3 flex-wrap">
+              <button
+                onClick={() => runEnrichBatch(false)}
+                disabled={isEnriching || enrichMissing === 0}
+                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isEnriching ? '생성 중…' : '다음 5개 학습 노트 생성'}
+              </button>
+              <button
+                onClick={() => runEnrichBatch(true)}
+                disabled={isEnriching || enrichMissing === 0}
+                className="rounded-lg bg-[#0891B2] px-4 py-2 text-sm font-medium text-white hover:bg-[#0E7490] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isEnriching ? '생성 중…' : '전체 자동 생성'}
+              </button>
+              <p className="text-xs text-[#94A3B8]">
+                5개씩 순차 생성. 신규 import 시 자동 생성됩니다.
+              </p>
+            </div>
+
+            {enrichMsg && (
+              <div className={`mt-3 rounded-lg border px-4 py-2.5 text-sm ${
+                enrichMsg.startsWith('✅') ? 'bg-[#F0FDF4] border-green-200 text-green-700' :
+                enrichMsg.startsWith('ℹ️') ? 'bg-blue-50 border-blue-200 text-blue-700' :
+                'bg-red-50 border-red-200 text-red-700'
+              }`}>
+                {enrichMsg}
+              </div>
+            )}
           </div>
         </div>
       )}

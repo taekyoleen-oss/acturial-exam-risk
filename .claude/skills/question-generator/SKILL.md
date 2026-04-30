@@ -9,6 +9,65 @@
 
 ---
 
+## KIRI 보고서 학습 노트 생성 워크플로우
+
+전문기관 보고서(`act_kidi_reports`)에는 `study_notes` 필드가 있다.
+임포트(`/api/admin/kidi-import`) 직후 이 필드는 NULL이며, 별도 단계에서 생성해야 한다.
+
+### 생성 API
+
+- **GET** `/api/admin/kidi-enrich` — `study_notes IS NULL`인 보고서 수 반환
+- **POST** `/api/admin/kidi-enrich` — 미생성 보고서 최대 5개에 대해 학습 노트 생성
+
+### 관리자 UI 흐름
+
+1. 어드민 `/admin` → **KIRI 보고서** 탭 진입
+2. **"다음 10개 처리"** 버튼 → PDF 임포트 및 요약 생성
+3. **"현황 확인"** 버튼 → 학습 노트 미생성 보고서 수 조회
+4. **"다음 5개 학습 노트 생성"** 버튼 → Claude Sonnet으로 `study_notes` 생성
+5. 미생성 보고서가 0개가 될 때까지 4번 반복
+
+### 학습 노트 출력 형식 (마크다운)
+
+```markdown
+## 1. 보고서 개요
+(2~3줄 핵심 요약)
+
+## 2. 주요 내용
+### 가. [첫 번째 핵심 주제]
+- 내용 bullet
+
+## 3. 핵심 용어 정리
+| 용어 | 정의 및 설명 |
+|------|-------------|
+| **용어** | 설명 |
+
+## 4. 시험 출제 포인트
+> 답안 작성 연습 권장
+1. 포인트 1
+2. 포인트 2
+
+## 5. 관련 제도·규제 연계
+- **IFRS17**: 연관점
+- **K-ICS**: 연관점
+```
+
+### 모달 표시 조건
+
+- `study_notes` 값 있음 → `StudyNotesRenderer`로 마크다운 렌더링
+- `study_notes IS NULL` → "⏳ 학습 노트 생성 중입니다. 잠시 후 다시 확인해 주세요." 메시지 표시
+  → 어드민에서 `/api/admin/kidi-enrich` 실행 필요
+
+### 스크립트 대안
+
+CLI에서 직접 실행할 경우:
+```bash
+npx tsx scripts/enrich-kidi-content.ts         # 미생성 보고서만
+npx tsx scripts/enrich-kidi-content.ts --reprocess  # 전체 재생성
+```
+
+---
+
 ## RAG 분기별 프롬프트
 
 ### 공통 System
