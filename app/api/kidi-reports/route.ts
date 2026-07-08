@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { getAuthState } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
+  const auth = await getAuthState();
+  if (!auth.isLoggedIn || !auth.isApproved) {
+    return NextResponse.json(
+      { error: '승인된 회원만 이용할 수 있습니다.' },
+      { status: 403 }
+    );
+  }
+
   const { searchParams } = new URL(request.url);
   const issueNo = searchParams.get('issue_no');
   const category = searchParams.get('category');

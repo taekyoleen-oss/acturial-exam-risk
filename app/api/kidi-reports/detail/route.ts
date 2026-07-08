@@ -4,8 +4,17 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { getAuthState } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
+  const auth = await getAuthState();
+  if (!auth.isLoggedIn || !auth.isApproved) {
+    return NextResponse.json(
+      { error: '승인된 회원만 이용할 수 있습니다.' },
+      { status: 403 }
+    );
+  }
+
   const id = request.nextUrl.searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
 

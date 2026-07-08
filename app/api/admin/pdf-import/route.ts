@@ -63,13 +63,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: '연도 형식 오류' }, { status: 400 });
   }
 
-  // 파일명에서 회차 자동 파싱 (예: 2018년_41회_2차시험_계리리스크관리.pdf)
-  const sessionFromFilename = file.name.match(/(\d+회)/)?.[1] ?? null;
-  const resolvedSession = sessionFromFilename ?? session;
-
+  // session은 시험 구분('2차')이며 회차(예: '41회')와 다른 축이다.
+  // 파일명 회차를 session에 저장하면 upsert 충돌키(year,session,subject,question_no)가 어긋나므로 저장하지 않는다.
   const { data: importRow, error: importError } = await supabaseAdmin
     .from('act_pdf_imports')
-    .insert({ filename: file.name, year, session: resolvedSession, status: 'processing' })
+    .insert({ filename: file.name, year, session, status: 'processing' })
     .select()
     .single();
 
@@ -77,7 +75,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: '이력 생성 실패' }, { status: 500 });
   }
 
-  processPdf(file, year, resolvedSession, importRow.id).catch(console.error);
+  processPdf(file, year, session, importRow.id).catch(console.error);
 
   return NextResponse.json({ importId: importRow.id, status: 'processing' });
 }
@@ -139,7 +137,7 @@ ${extractedText.slice(0, 15000)}`,
       subject: '리스크관리',
       question_no: q.question_no,
       question_text: q.question_text,
-      options: JSON.stringify([]),   // 주관식 — 선택지 없음
+      options: [],   // 주관식 — 선택지 없음 (jsonb 배열)
       answer: q.answer ?? null,
       explanation: q.explanation ?? null,
       tags: q.tags,

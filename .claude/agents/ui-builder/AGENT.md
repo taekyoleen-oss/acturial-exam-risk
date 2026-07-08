@@ -2,11 +2,11 @@
 
 ## 역할
 
-Next.js 15 App Router 기반 모든 페이지와 컴포넌트를 구현한다.
+Next.js 16 App Router 기반 모든 페이지와 컴포넌트를 구현한다.
 TweakCN 커스터마이징, KaTeX 수식 렌더링, 반응형 레이아웃을 담당한다.
 
 참조 설계서: `../../../actuary-exam-app-design.md` (섹션 2 페이지, 섹션 4 UI/UX)
-타입 참조: `../../output/types.ts` (db-architect 생성)
+타입 참조: `types/` (특히 `types/question.ts`, `types/supabase.ts`)
 
 ---
 
@@ -37,9 +37,11 @@ TweakCN 커스터마이징, KaTeX 수식 렌더링, 반응형 레이아웃을 �
 | `/weekly` | `app/weekly/page.tsx` | 이번 주 예상 문제 전체 |
 | `/weekly/[year]/[week]` | `app/weekly/[year]/[week]/page.tsx` | 주간 아카이브 |
 | `/past-questions` | `app/past-questions/page.tsx` | 기출문제 연도별 조회 |
-| `/admin` | `app/admin/page.tsx` | 관리자 (ADMIN_USER_ID 비교, 불일치 시 notFound()) |
+| `/kidi` | `app/kidi/page.tsx` | 전문기관(보험연구원) 보고서. 승인 회원은 학습노트까지 열람 |
+| `/login`·`/signup`·`/pending`·`/settings` | `app/*/page.tsx` | 로그인·회원가입·승인 대기·내 정보 |
+| `/admin` | `app/admin/page.tsx` | 관리자 (세션 uid === ADMIN_USER_ID, 불일치 시 notFound()) |
 
-> **모든 공개 페이지**: 인증 없이 접근 가능. Server Component 우선 구현.
+> **공개 페이지**(`/`, `/weekly`, `/past-questions`, `/kidi`): 게스트도 인증 없이 접근. Server Component 우선. 승인 회원 전용 콘텐츠(AI 모범답안·KIDI 학습노트·기출 전체)는 `getAuthState().isApproved`로 분기.
 
 ---
 
@@ -48,16 +50,16 @@ TweakCN 커스터마이징, KaTeX 수식 렌더링, 반응형 레이아웃을 �
 ### components/weekly/
 
 **VirtualQuestionCard.tsx**
-- 가상 문제 카드. 문제 번호, 본문(stem), 선택지(options[]) 표시.
-- **정답·해설 표시 금지**.
+- 가상 문제 카드. 문제 번호, 본문(stem) 표시. **주관식 논술형 — 선택지 없음**. "답안을 직접 작성해 보세요" 안내 표시.
+- **정답·해설 표시 금지**(AI 모범답안은 승인 회원이 별도 버튼으로 요청).
 - `rag_mode === 'rag_enhanced'`이면 `<RagSourceBadge />` 표시.
-- `has_formula === true`이면 `stem`과 선택지에 KaTeX 렌더링 적용.
-- Props: `{ no: number; stem: string; options: Option[]; ragMode?: string; hasFormula?: boolean }`
+- `has_formula === true`이면 `stem`에 KaTeX 렌더링 적용.
+- Props: `{ no: number; stem: string; topicTag?: string; ragMode?: string; hasFormula?: boolean }`
 
 **PastQuestionCard.tsx** (→ `components/past/`에 위치)
-- 기출문제 카드. 연도, 회차, 문제 번호 배지 + 본문 + 선택지 표시.
+- 기출문제 카드. 연도, 회차, 문제 번호 배지 + 본문 표시. **논술형 — 선택지 없음**.
 - **정답·해설 표시 금지**.
-- Props: `{ year: number; session: string; questionNo: number; questionText: string; options: Option[]; hasFormula?: boolean }`
+- Props: `{ year: number; session: string; questionNo: number; questionText: string; hasFormula?: boolean }`
 
 **ArticlePreview.tsx**
 - 기사 카드. 제목, 출처(source), 날짜(published_at), 핵심 내용 요약(summary), 키워드 태그(keywords[]) 표시.
@@ -95,7 +97,7 @@ TweakCN 커스터마이징, KaTeX 수식 렌더링, 반응형 레이아웃을 �
 
 | 컴포넌트 | 변경 |
 |---------|------|
-| `Button` | `variant="option"` 추가 — 선택지 전용 (좌측 번호 라벨, 클릭 시 하이라이트 없음) |
+| `Button` | 기본 라운딩 유지 (2차는 주관식이라 선택지 전용 variant는 불필요) |
 | `Card` | 상단 문제 번호 스트라이프 (`primary` 컬러 4px 좌측 보더) |
 | `Badge` | `variant="weekly"` (퍼플), `variant="past"` (시안) |
 | `Collapsible` | `SimilarPastQuestionPanel` 전용 슬라이드 애니메이션 |
@@ -109,7 +111,7 @@ TweakCN 커스터마이징, KaTeX 수식 렌더링, 반응형 레이아웃을 �
 // has_formula=true인 경우에만 동적 임포트
 const katex = has_formula ? await import('katex') : null;
 
-// stem, options 텍스트에서 $...$ 또는 $$...$$ 패턴 감지 후 렌더링
+// stem(문제 본문) 텍스트에서 $...$ 또는 $$...$$ 패턴 감지 후 렌더링
 // has_formula=false이면 일반 텍스트로만 렌더링 (KaTeX 로드 안 함)
 ```
 

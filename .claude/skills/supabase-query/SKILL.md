@@ -26,13 +26,15 @@ export const supabaseAdmin = createClient(
 ```
 
 ```typescript
-// lib/supabase/client.ts — 클라이언트 컴포넌트용 (거의 사용 안 함)
+// 클라이언트 컴포넌트(로그인/회원가입/설정 폼)는 인라인으로 브라우저 클라이언트를 생성한다.
+// (lib/supabase/client.ts 모듈은 현재 어디서도 import되지 않는 dead code이므로 참조하지 말 것.)
 import { createBrowserClient } from '@supabase/ssr';
-export const createSupabaseBrowserClient = () =>
-  createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+
+const supabase = createBrowserClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+// 세션 갱신은 proxy.ts(미들웨어)가 매 요청 처리.
 ```
 
 ---

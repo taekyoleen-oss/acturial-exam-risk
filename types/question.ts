@@ -19,6 +19,8 @@ export interface PastQuestion {
 export interface VirtualQuestion {
   no: number;
   stem: string;
+  /** 주제 태그 (런타임 jsonb에 존재, 주간 배치 주제 중복 회피에 사용) */
+  topic_tag?: string;
   related_article_idx: number;
   similar_past_question_ids: string[];
   rag_mode: 'rag_enhanced' | 'fallback';

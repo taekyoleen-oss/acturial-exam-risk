@@ -50,6 +50,20 @@ export function getISOWeek(date: Date): number {
 }
 
 /**
+ * 날짜가 속한 ISO week-year(주차 기준 연도) 반환
+ * 달력 연도와 다를 수 있다 (연말·연초 경계). 해당 ISO 주의 목요일이 속한 연도.
+ * UTC 기준으로 계산하여 타임존 영향을 방지한다.
+ */
+export function getISOWeekYear(date: Date): number {
+  const utcMs =
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+  const d = new Date(utcMs);
+  // 해당 ISO 주의 목요일로 이동 (getISOWeek과 동일한 기준일)
+  d.setUTCDate(d.getUTCDate() + 3 - ((d.getUTCDay() + 6) % 7));
+  return d.getUTCFullYear();
+}
+
+/**
  * 주간 라벨 생성 (예: "2025년 3월 3주차")
  * UTC 기준으로 계산하여 타임존 영향을 방지한다.
  */

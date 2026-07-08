@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
 import { getRecentBatchStatus } from '@/lib/supabase/queries/weekly';
@@ -34,9 +35,9 @@ export default async function AdminPage() {
       <header className="border-b border-[#E2E8F0] bg-white">
         <div className="mx-auto max-w-5xl px-4 py-4 flex items-center justify-between">
           <div>
-            <a href="/" className="text-lg font-semibold text-[#0F172A] hover:text-[#2563EB]">
+            <Link href="/" className="text-lg font-semibold text-[#0F172A] hover:text-[#2563EB]">
               계리리스크관리 학습 참고
-            </a>
+            </Link>
             <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
               관리자
             </span>

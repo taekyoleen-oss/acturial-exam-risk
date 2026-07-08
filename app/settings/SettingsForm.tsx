@@ -29,8 +29,8 @@ export function SettingsForm({ email }: Props) {
       return;
     }
 
-    if (newPassword.length < 6) {
-      setStatus({ type: 'error', message: '비밀번호는 6자리 이상이어야 합니다.' });
+    if (newPassword.length < 8) {
+      setStatus({ type: 'error', message: '비밀번호는 8자리 이상이어야 합니다.' });
       return;
     }
 
@@ -72,9 +72,9 @@ export function SettingsForm({ email }: Props) {
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               required
-              minLength={6}
+              minLength={8}
               className="w-full rounded-lg border border-[#D1D5DB] px-3 py-2 text-sm text-[#111827] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 focus:border-[#2563EB]"
-              placeholder="새 비밀번호 입력 (6자 이상)"
+              placeholder="새 비밀번호 입력 (8자 이상)"
             />
           </div>
 
@@ -85,7 +85,7 @@ export function SettingsForm({ email }: Props) {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
-              minLength={6}
+              minLength={8}
               className="w-full rounded-lg border border-[#D1D5DB] px-3 py-2 text-sm text-[#111827] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 focus:border-[#2563EB]"
               placeholder="새 비밀번호 다시 입력"
             />

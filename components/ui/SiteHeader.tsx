@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { LogoutButton } from './LogoutButton';
 import type { AuthState } from '@/lib/auth';
 
@@ -25,9 +26,9 @@ export function SiteHeader({ auth, currentPath = '' }: Props) {
       <div className="mx-auto max-w-5xl px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <div className="flex items-center justify-between gap-3 sm:block sm:shrink-0">
           <div>
-            <a href="/" className="text-base font-semibold text-[#0F172A] hover:text-[#2563EB]">
+            <Link href="/" className="text-base font-semibold text-[#0F172A] hover:text-[#2563EB]">
               계리리스크관리 학습 참고
-            </a>
+            </Link>
             {auth.isApproved && (
               <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
                 {auth.isAdmin ? '관리자' : '승인 회원'}

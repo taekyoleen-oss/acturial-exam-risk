@@ -1,8 +1,17 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { getAuthState } from '@/lib/auth';
 
 /** 권호 목록 + 카테고리 목록 반환 */
 export async function GET() {
+  const auth = await getAuthState();
+  if (!auth.isLoggedIn || !auth.isApproved) {
+    return NextResponse.json(
+      { error: '승인된 회원만 이용할 수 있습니다.' },
+      { status: 403 }
+    );
+  }
+
   const [issuesRes, categoriesRes, statsRes] = await Promise.all([
     supabaseAdmin
       .from('act_kidi_reports')

@@ -10,7 +10,7 @@ pgvector 익스텐션 활성화 및 HNSW 인덱스 설정도 담당한다.
 
 ---
 
-## 테이블 목록 (act_ prefix)
+## 테이블 목록 (act_ prefix) — 9개
 
 | 테이블 | 설명 |
 |-------|------|
@@ -20,6 +20,11 @@ pgvector 익스텐션 활성화 및 HNSW 인덱스 설정도 담당한다.
 | `act_pdf_imports` | 기출 PDF 파싱 작업 이력 |
 | `act_rag_textbooks` | 업로드된 교재 메타데이터 |
 | `act_rag_embeddings` | 교재 청크 + 임베딩 벡터 (vector(1536)) |
+| `act_ai_answers` | AI 모범답안 캐시 (승인 회원 전용 응답, `question_key` UNIQUE) |
+| `act_kidi_reports` | 보험연구원(KIDI) 보고서 — 요약·태그·연관성·학습노트 |
+| `act_user_profiles` | 회원 프로필 + 승인 상태 (`auth.users` 참조) |
+
+> 마이그레이션 소스: `supabase/migrations/`, 전체 스키마 스냅샷: `supabase/full_schema_for_new_project.sql`, 타입: `types/supabase.ts`.
 
 ---
 
@@ -34,7 +39,7 @@ CREATE TABLE act_past_questions (
   subject       varchar(50) NOT NULL DEFAULT '리스크관리',
   question_no   integer NOT NULL,
   question_text text NOT NULL,
-  options       jsonb NOT NULL,              -- [{label: 'A', text: '...'}]
+  options       jsonb NOT NULL,              -- 2차는 주관식이라 빈 배열 [] 저장 (선택지 없음)
   answer        varchar(5),                  -- DB 보관용, API 응답에 포함 금지
   explanation   text,                        -- DB 보관용, API 응답에 포함 금지
   tags          text[],
@@ -53,10 +58,10 @@ CREATE TABLE act_weekly_issues (
   issue_date    date NOT NULL UNIQUE,        -- 해당 주 월요일
   week_label    varchar(20) NOT NULL,        -- '2025년 3월 3주차'
   articles      jsonb NOT NULL DEFAULT '[]', -- [{title, source, url, summary, published_at, keywords[]}]
-  questions     jsonb NOT NULL DEFAULT '[]', -- [{no, stem, options[], related_article_idx,
+  questions     jsonb NOT NULL DEFAULT '[]', -- [{no, stem, topic_tag, related_article_idx,
                                              --   similar_past_question_ids uuid[],
-                                             --   rag_mode: 'rag_enhanced'|'fallback'}]
-                                             -- ※ 정답 없음
+                                             --   rag_mode: 'rag_enhanced'|'fallback', has_formula}]
+                                             -- ※ 주관식(선택지 없음), 정답 없음
   generated_at  timestamptz,
   status        varchar(20) NOT NULL DEFAULT 'draft' -- 'draft'|'published'|'failed'
 );
@@ -128,6 +133,60 @@ CREATE INDEX ON act_rag_embeddings
   WITH (m = 16, ef_construction = 64);
 ```
 
+### act_ai_answers
+```sql
+-- AI 모범답안 캐시 (승인 회원 전용 /api/answer 응답)
+-- question_key: 기출 'past:{id}' | 가상 'virtual:{issue_date}:{question_no}'
+CREATE TABLE act_ai_answers (
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  question_key text NOT NULL UNIQUE,
+  answer       text NOT NULL,          -- Claude 생성 모범답안 (마크다운, 1,500자+)
+  created_at   timestamptz NOT NULL DEFAULT now(),
+  updated_at   timestamptz NOT NULL DEFAULT now()
+);
+```
+
+### act_kidi_reports
+```sql
+-- 보험연구원(KIDI) 보고서. 임포트 → enrich → 학습노트 파이프라인
+CREATE TABLE act_kidi_reports (
+  id                    uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  issue_no              integer NOT NULL,               -- 권호 (예: 635)
+  file_no               integer,                        -- 파일 앞 번호
+  title                 text NOT NULL,
+  summary               text,                           -- Claude 생성 요약
+  key_points            jsonb NOT NULL DEFAULT '[]',
+  tags                  text[] NOT NULL DEFAULT '{}',
+  topic_category        text,
+  source_file           text NOT NULL,
+  status                varchar(20) NOT NULL DEFAULT 'pending', -- pending|processed|error
+  error_msg             text,
+  processed_at          timestamptz,
+  created_at            timestamptz NOT NULL DEFAULT now(),
+  -- ALTER 추가분 (마이그레이션 3~5)
+  exam_relevance        varchar(10) DEFAULT 'medium',   -- high|medium|low
+  related_question_tags text[] NOT NULL DEFAULT '{}',
+  published_month       varchar(30),
+  study_notes           text,                           -- 승인 회원용 학습노트 (마크다운)
+  UNIQUE (source_file)
+);
+```
+
+### act_user_profiles
+```sql
+-- 회원 프로필 + 승인. auth.users INSERT 시 트리거로 자동 생성
+CREATE TABLE act_user_profiles (
+  id           uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email        text NOT NULL,
+  name         text,
+  status       varchar(20) NOT NULL DEFAULT 'pending', -- pending|approved|rejected
+  created_at   timestamptz NOT NULL DEFAULT now(),
+  approved_at  timestamptz,
+  rejected_at  timestamptz
+);
+-- 트리거 handle_new_user(): auth.users AFTER INSERT → act_user_profiles INSERT
+```
+
 ---
 
 ## RLS 정책
@@ -150,9 +209,25 @@ CREATE POLICY "public_read" ON act_rag_embeddings FOR SELECT USING (true);
 
 -- 쓰기는 service_role 키(서버)만 허용 (RLS 정책 없음 = service_role로만 INSERT/UPDATE/DELETE)
 -- API Route Handler에서 SUPABASE_SERVICE_ROLE_KEY 사용 시 RLS 우회 적용
+
+-- 신규 테이블
+ALTER TABLE act_kidi_reports   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE act_user_profiles  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE act_ai_answers     ENABLE ROW LEVEL SECURITY;
+
+-- act_kidi_reports: 공개 읽기 + service_role 쓰기
+CREATE POLICY "public_read"        ON act_kidi_reports FOR SELECT USING (true);
+CREATE POLICY "service_role_write" ON act_kidi_reports FOR ALL USING (auth.role() = 'service_role');
+
+-- act_user_profiles: 본인 프로필만 읽기 + service_role 전체
+CREATE POLICY "user_read_own"   ON act_user_profiles FOR SELECT USING (auth.uid() = id);
+CREATE POLICY "service_role_all" ON act_user_profiles FOR ALL USING (auth.role() = 'service_role');
 ```
 
-> **관리자 판별**: Supabase Auth 미사용. API Route에서 `ADMIN_USER_ID` 환경변수와 요청 헤더 비교.
+> **인증 모델**: **Supabase Auth 사용**(이메일/비밀번호). 3단계 — 게스트/승인 회원/관리자.
+> - **회원 승인**: `act_user_profiles.status`(pending→approved). 승인 회원 전용 콘텐츠(AI 모범답안·KIDI 학습노트·기출 전체)는 앱 서버(`getAuthState().isApproved`)에서 게이트하고, DB 접근은 `supabaseAdmin`(service_role)로 수행.
+> - **관리자 판별**: 세션 `user.id === ADMIN_USER_ID`(`verifyAdminSession`). 일부 CLI 경유 관리자 API는 `x-admin-id` 헤더 비교(`verifyAdmin`)도 사용.
+> - `act_ai_answers`는 앱이 `supabaseAdmin`으로만 접근한다(승인 게이트는 API 단). anon 직접 조회를 막으려면 public_read 정책 제거가 필요하다(보안 항목).
 
 ---
 
@@ -189,7 +264,7 @@ $$;
 
 ## 산출물
 
-작업 완료 후 다음 파일을 `/output/`에 저장:
-- `output/schema.json` — 확정 테이블 스키마 (테이블명, 컬럼, 타입)
-- `output/types.ts` — TypeScript 인터페이스 (`PastQuestion`, `WeeklyIssue`, `NewsSource`, `RagEmbedding` 등)
-- `output/migration.sql` — 실행 가능한 전체 마이그레이션 SQL
+작업 완료 후 다음 코드 경로를 갱신한다(`output/` 산출물 규약은 사용하지 않음):
+- `supabase/migrations/*.sql` — 실행 가능한 마이그레이션 (스키마·RLS·인덱스·트리거)
+- `supabase/full_schema_for_new_project.sql` — 신규 프로젝트용 전체 스키마 스냅샷
+- `types/supabase.ts` — Supabase 자동 생성 `Database` 타입, 도메인 타입은 `types/`

@@ -6,6 +6,10 @@ import type { ResponseCookie } from 'next/dist/compiled/@edge-runtime/cookies';
 export async function proxy(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
 
+  // 유입된 위조 인증 헤더 제거 — 아래에서 세션 검증된 값만 재설정한다.
+  requestHeaders.delete('x-admin-id');
+  requestHeaders.delete('x-user-id');
+
   // Collect cookies to set (Supabase auth refresh)
   let cookiesToSet: Array<{ name: string; value: string; options: Partial<ResponseCookie> }> = [];
 

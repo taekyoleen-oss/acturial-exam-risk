@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { getAuthState } from '@/lib/auth';
 import { SiteHeader } from '@/components/ui/SiteHeader';
 
@@ -23,12 +24,12 @@ export default async function Home() {
             : ' 회원가입 후 관리자 승인을 받으면 전체 콘텐츠를 이용하실 수 있습니다.'}
         </p>
         <div className="flex gap-3 justify-center flex-wrap">
-          <a
+          <Link
             href="/weekly"
             className="rounded-lg bg-[#2563EB] px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
           >
             이번 주 예상 문제 보기
-          </a>
+          </Link>
           <a
             href="/past-questions"
             className="rounded-lg border border-[#E2E8F0] bg-white px-5 py-2.5 text-sm font-medium text-[#0F172A] hover:bg-[#F8FAFC] transition-colors"

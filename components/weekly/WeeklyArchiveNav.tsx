@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import type { WeeklyIssueSummary } from '@/types/weekly';
-import { getISOWeek } from '@/lib/utils/week';
+import { getISOWeek, getISOWeekYear } from '@/lib/utils/week';
 
 interface WeeklyArchiveNavProps {
   archives: WeeklyIssueSummary[];
@@ -19,7 +19,9 @@ export function WeeklyArchiveNav({ archives, currentIssueDate }: WeeklyArchiveNa
         <ul className="space-y-1">
           {archives.map((arc) => {
             const d = new Date(arc.issue_date);
-            const year = d.getUTCFullYear();
+            // ISO week-year를 사용해야 [year]/[week] 라운드트립이 연말·연초 경계에서 일치한다.
+            // (달력 연도 getUTCFullYear()는 ISO 주차와 어긋날 수 있음)
+            const year = getISOWeekYear(d);
             const week = getISOWeek(d);
             const isCurrent = arc.issue_date === currentIssueDate;
             const href = isCurrent ? '/weekly' : `/weekly/${year}/${week}`;

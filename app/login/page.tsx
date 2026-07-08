@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getAuthState } from '@/lib/auth';
 import { LoginForm } from './LoginForm';
@@ -12,9 +13,9 @@ export default async function LoginPage() {
     <main className="min-h-screen bg-[#F8FAFC] flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <a href="/" className="text-xl font-bold text-[#0F172A] hover:text-[#2563EB]">
+          <Link href="/" className="text-xl font-bold text-[#0F172A] hover:text-[#2563EB]">
             계리리스크관리 학습 참고
-          </a>
+          </Link>
           <p className="text-sm text-[#64748B] mt-1">보험계리사 2차 학습 서비스</p>
         </div>
 

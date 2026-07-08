@@ -80,6 +80,7 @@ export type Database = {
           key_points: Json
           processed_at: string | null
           published_month: string | null
+          related_question_tags: string[]
           source_file: string
           status: string
           study_notes: string | null
@@ -98,6 +99,7 @@ export type Database = {
           key_points?: Json
           processed_at?: string | null
           published_month?: string | null
+          related_question_tags?: string[]
           source_file: string
           status?: string
           study_notes?: string | null
@@ -116,6 +118,7 @@ export type Database = {
           key_points?: Json
           processed_at?: string | null
           published_month?: string | null
+          related_question_tags?: string[]
           source_file?: string
           status?: string
           study_notes?: string | null

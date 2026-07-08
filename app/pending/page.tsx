@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getAuthState } from '@/lib/auth';
 import { LogoutButton } from '@/components/ui/LogoutButton';
@@ -13,9 +14,9 @@ export default async function PendingPage() {
   return (
     <main className="min-h-screen bg-[#F8FAFC] flex items-center justify-center px-4">
       <div className="w-full max-w-sm text-center">
-        <a href="/" className="text-xl font-bold text-[#0F172A] hover:text-[#2563EB]">
+        <Link href="/" className="text-xl font-bold text-[#0F172A] hover:text-[#2563EB]">
           계리리스크관리 학습 참고
-        </a>
+        </Link>
 
         <div className="mt-8 bg-white rounded-xl border border-[#E2E8F0] p-8">
           {isRejected ? (
@@ -42,12 +43,12 @@ export default async function PendingPage() {
           )}
 
           <div className="mt-6 flex flex-col gap-2">
-            <a
+            <Link
               href="/"
               className="rounded-lg border border-[#E2E8F0] px-4 py-2 text-sm font-medium text-[#0F172A] hover:bg-[#F8FAFC] transition-colors"
             >
               제한된 콘텐츠 둘러보기
-            </a>
+            </Link>
             <LogoutButton />
           </div>
         </div>

@@ -1,13 +1,31 @@
 /**
  * Supabase 데이터 마이그레이션 스크립트
  * 기존 프로젝트 → 신규 프로젝트
+ *
+ * ⚠️ 사용 중단(DEPRECATED): 일회성 프로젝트 이전 마이그레이션 완료본.
+ *    재실행이 필요한 경우에만 아래 환경변수를 설정하여 실행할 것.
+ *
+ * 필수 환경변수 (service_role 키는 코드/이력에 하드코딩 금지):
+ *   MIGRATE_OLD_URL, MIGRATE_OLD_SERVICE_ROLE_KEY
+ *   MIGRATE_NEW_URL, MIGRATE_NEW_SERVICE_ROLE_KEY
+ *
+ * 실행 예: MIGRATE_OLD_URL=... MIGRATE_OLD_SERVICE_ROLE_KEY=... \
+ *          MIGRATE_NEW_URL=... MIGRATE_NEW_SERVICE_ROLE_KEY=... node scripts/migrate-data.mjs
  */
 
-const OLD_URL = 'https://habzqdxspupdkxinhpfp.supabase.co';
-const OLD_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhhYnpxZHhzcHVwZGt4aW5ocGZwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MzUzMDM1NiwiZXhwIjoyMDg5MTA2MzU2fQ.2pe2f-YV_JqSMFP1c2GXxA-RP_-1QLntIZTiStQA9kg';
+const OLD_URL = process.env.MIGRATE_OLD_URL;
+const OLD_KEY = process.env.MIGRATE_OLD_SERVICE_ROLE_KEY;
 
-const NEW_URL = 'https://alsxyalzqpysxlcfhaze.supabase.co';
-const NEW_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFsc3h5YWx6cXB5c3hsY2ZoYXplIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjUzNDM3NiwiZXhwIjoyMDkyMTEwMzc2fQ.8-qP51_-sQ7GcPmtI3htG_LIDAJLnNeeqb1m0jFzWsU';
+const NEW_URL = process.env.MIGRATE_NEW_URL;
+const NEW_KEY = process.env.MIGRATE_NEW_SERVICE_ROLE_KEY;
+
+if (!OLD_URL || !OLD_KEY || !NEW_URL || !NEW_KEY) {
+  console.error(
+    '❌ 필수 환경변수 누락: MIGRATE_OLD_URL, MIGRATE_OLD_SERVICE_ROLE_KEY, ' +
+      'MIGRATE_NEW_URL, MIGRATE_NEW_SERVICE_ROLE_KEY 를 설정하세요.'
+  );
+  process.exit(1);
+}
 
 const PAGE_SIZE = 100;
 
